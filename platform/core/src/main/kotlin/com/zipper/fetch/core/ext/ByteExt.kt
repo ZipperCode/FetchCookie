@@ -3,6 +3,9 @@ package com.zipper.fetch.core.ext
 import com.zipper.fetch.core.Base64
 import java.nio.charset.Charset
 import java.security.MessageDigest
+import javax.crypto.Mac
+import javax.crypto.SecretKey
+import javax.crypto.spec.SecretKeySpec
 
 fun ByteArray.hex(): String {
     val stringBuffer = StringBuilder()
@@ -12,8 +15,8 @@ fun ByteArray.hex(): String {
     return stringBuffer.toString()
 }
 
-fun ByteArray.base64(flag: Int = 0): String {
-    return Base64.encodeToString(this, flag)
+fun ByteArray.base64(flag: Int = 0): ByteArray {
+    return Base64.encode(this, flag)
 }
 
 fun ByteArray.string(charset: Charset = Charsets.UTF_8): String {
@@ -35,4 +38,12 @@ fun Byte.hex(): String {
         tmp = this + 256
     }
     return String.format("%02X", tmp and 0xFF)
+}
+
+fun ByteArray.hmac(key: ByteArray, algorithm: String = "HmacSHA256"): ByteArray {
+    val skey: SecretKey = SecretKeySpec(key, algorithm)
+    val mac = Mac.getInstance(algorithm)
+    mac.init(skey)
+    mac.update(this)
+    return mac.doFinal()
 }

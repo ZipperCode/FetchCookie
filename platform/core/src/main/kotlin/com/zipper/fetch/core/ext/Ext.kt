@@ -30,6 +30,54 @@ fun randomChar(): Char {
     return chars.random()
 }
 
+val dateFmt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH).apply {
+    timeZone = TimeZone.getTimeZone("Asia/Shanghai")
+}
+
+fun Long.toDateFmt(): String {
+    return dateFmt.format(Date(this))
+}
+
+fun Any?.asMap(): Map<*, *>? {
+    return this as Map<*, *>?
+}
+
+fun Map<*, *>?.getString(key: Any): String {
+    return getNoNull(key, "")
+}
+
+fun Map<*, *>?.getBoolean(key: Any): Boolean {
+    return getNoNull(key, false)
+}
+
+fun Map<*, *>?.getInt(key: Any): Int {
+    return getNumber(key, 0).toInt()
+}
+
+fun Map<*, *>?.getLong(key: Any): Long {
+    return getNumber(key, 0).toLong()
+}
+
+inline fun <reified T : Number> Map<*, *>?.getNumber(key: Any, default: T): Number {
+    if (this == null) {
+        return default
+    }
+    val res = get(key)
+
+    if (res is Number) {
+        return res
+    }
+    return default
+}
+
+fun Map<*, *>?.getMap(key: Any): Map<*, *> {
+    return if (this == null) mapOf<Any, Any>() else get(key) as Map<*, *>
+}
+
+inline fun <reified T> Map<*, *>?.getNoNull(key: Any, default: T): T {
+    return if (this == null) default else get(key) as T
+}
+
 fun String.formatDate(date: Date = Date()): String {
     val defaultFormat = "yyyy-MM-dd"
     return try {
@@ -52,7 +100,7 @@ fun Map<String, Any>.toUrlParam(): String {
         return ""
     }
     val builder = StringBuilder()
-    forEach { k, v ->
+    forEach { (k, v) ->
         builder.append(k).append("=").append(v).append("&")
     }
     return builder.deleteCharAt(builder.length - 1).toString()

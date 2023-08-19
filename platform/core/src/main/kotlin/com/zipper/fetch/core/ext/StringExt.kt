@@ -18,7 +18,7 @@ fun String.unHex(): ByteArray {
 
 
 fun String.base64(flag: Int = 0): String {
-    return toByteArray(Charsets.UTF_8).base64(flag)
+    return toByteArray(Charsets.UTF_8).base64(flag).hex()
 }
 
 fun String.decBase64(flag: Int = 0): ByteArray {
@@ -61,3 +61,6 @@ fun String.formatParam(): Map<String, String> {
 
 var MEDIA_JSON: MediaType? = "application/json;charset=utf-8".toMediaTypeOrNull()
 
+fun String.hmac(key: String): ByteArray {
+    return toByteArray().hmac(key.toByteArray())
+}
