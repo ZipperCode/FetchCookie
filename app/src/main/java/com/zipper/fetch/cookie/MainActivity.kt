@@ -1,43 +1,60 @@
 package com.zipper.fetch.cookie
 
 import android.os.Bundle
+import android.view.Window
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.view.WindowCompat
+import androidx.navigation.compose.rememberNavController
 import com.zipper.fetch.cookie.ui.theme.FetchCookieTheme
+import com.zipper.fetch.cookie.ui.theme.SystemUiController
+import com.zipper.fetch.cookie.ui.theme.TransparentSystemBars
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
-            FetchCookieTheme {
-                // A surface container using the 'background' color from the theme
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    Greeting("Android")
-                }
-            }
+            FetchCookieApp(window)
         }
     }
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
+fun FetchCookieApp(window: Window) {
+    val systemUiController = remember { SystemUiController(window) }
+    FetchCookieTheme(systemUiController = systemUiController) {
+        FetchCookieContent()
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FetchCookieContent() {
+    Surface(
+        modifier = Modifier
+            .fillMaxSize()
+            .systemBarsPadding(),
+        color = MaterialTheme.colorScheme.background,
+    ) {
+        val navController = rememberNavController()
+        FetchCookieNavGraph(navController)
+    }
 }
 
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {
-    FetchCookieTheme {
-        Greeting("Android")
-    }
+    FetchCookieContent()
 }

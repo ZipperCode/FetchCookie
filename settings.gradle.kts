@@ -1,3 +1,5 @@
+import java.net.URI
+
 pluginManagement {
     repositories {
         google()
@@ -10,6 +12,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven { url = URI("https://oss.sonatype.org/content/repositories/snapshots/") }
     }
 }
 
@@ -18,4 +21,5 @@ include(":app")
 include(":platform")
 include(":platform:imaotai")
 include(":platform:core")
-include(":platform:zhcs")
+include(":platform:mini_maotai")
+include(":MiniProgramMaoTai")

@@ -89,7 +89,7 @@ fun String.formatDate(date: Date = Date()): String {
 
 fun String.toDate(format: String = "yyyy-MM-dd"): Date {
     return try {
-        SimpleDateFormat(this).parse(this)
+        SimpleDateFormat(format).parse(this)
     } catch (e: Exception) {
         Date()
     }
