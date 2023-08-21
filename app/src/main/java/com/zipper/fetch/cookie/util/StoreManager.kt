@@ -98,17 +98,6 @@ class StoreManager(private val context: Context) {
                 it[stringPreferencesKey(key)] ?: default
             }
 
-    fun readStringData(key: String, default: String = ""): String {
-        var value = ""
-        runBlocking {
-            context.dataStore.data.first {
-                value = it[stringPreferencesKey(key)] ?: default
-                true
-            }
-        }
-        return value
-    }
-
     fun readFloatFlow(key: String, default: Float = 0f): Flow<Float> =
         context.dataStore.data
             .catch {

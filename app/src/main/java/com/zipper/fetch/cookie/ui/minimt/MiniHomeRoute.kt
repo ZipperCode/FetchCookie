@@ -25,77 +25,109 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.zipper.fetch.cookie.R
-import com.zipper.fetch.cookie.ui.minimt.model.MiniAccount
+import com.zipper.fetch.cookie.dao.MiniAccount
+
+@Preview
+@Composable
+fun MiniHomeScreenPreview() {
+    val pageUiState = MiniPageUiState.Content(emptyList())
+    val uiState = MiniUIState.NoData(true)
+    MiniHomeScreen(pageUiState = pageUiState, uiState = uiState, onRoute = {}) {
+//
+    }
+}
 
 @Composable
 fun MiniHomeRoute(miniViewModel: MiniViewModel, onRoute: (String) -> Unit) {
     val uiState by miniViewModel.uiState.collectAsStateWithLifecycle()
-    MiniHomeScreen(uiState, onRoute) {
+    val pageUiState by miniViewModel.pageUiState.collectAsStateWithLifecycle()
+    MiniHomeScreen(pageUiState, uiState, onRoute = onRoute) {
         miniViewModel.loadAccountList()
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MiniHomeScreen(uiState: MiniUIState, onRoute: (String) -> Unit, onRefreshAccount: () -> Unit) {
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(text = "小程序茅台") },
-                actions = {
-                    IconButton(onClick = { /*TODO*/ }) {
-                        Icon(Icons.Filled.Settings, null)
+fun MiniHomeScreen(
+    pageUiState: MiniPageUiState,
+    uiState: MiniUIState,
+    onRoute: (String) -> Unit,
+    onRefreshAccount: () -> Unit,
+) {
+    when (pageUiState) {
+        is MiniPageUiState.Loading -> {
+            LoadingContent()
+        }
+
+        is MiniPageUiState.Error -> {
+            ErrorContent()
+        }
+
+        is MiniPageUiState.Content -> {
+            val snackBarHostState = remember { SnackbarHostState() }
+            Scaffold(
+                snackbarHost = { SnackbarHost(snackBarHostState) },
+                topBar = {
+                    CenterAlignedTopAppBar(
+                        title = { Text(text = "小程序茅台") },
+                        actions = {
+                            IconButton(onClick = { /*TODO*/ }) {
+                                Icon(Icons.Filled.Settings, null)
+                            }
+                        },
+                    )
+                },
+                content = { paddingValues ->
+                    MiniHomeContent(
+                        uiState,
+                        modifier = Modifier.padding(paddingValues),
+                        onRefreshAccount,
+                    ) { uiState: MiniUIState.HasAccount, modifier ->
+                        AccountListContent(uiState.accountList, modifier = modifier, onItemClicked = {
+                        }, onLoginClicked = {
+                        })
                     }
                 },
             )
-        },
-        content = { paddingValues ->
-            MiniHomeContent(
-                uiState,
-                modifier = Modifier.padding(paddingValues),
-                onRefreshAccount
-            ) { uiState: MiniUIState.HasAccount, modifier ->
-                AccountListContent(uiState.accountList, modifier = modifier, onItemClicked = {
-
-                }, onLoginClicked = {
-
-                })
-            }
-
         }
-    )
 
+        else -> {}
+    }
 }
-
 
 @Composable
 private fun MiniHomeContent(
     uiState: MiniUIState,
     modifier: Modifier,
     onRefreshAccount: () -> Unit,
-    hasDataContent: @Composable (MiniUIState.HasAccount, Modifier) -> Unit
+    hasDataContent: @Composable (MiniUIState.HasAccount, Modifier) -> Unit,
 ) {
     LoadingContent(
         empty = when (uiState) {
             is MiniUIState.HasAccount -> false
             is MiniUIState.NoData -> uiState.isLoading
-        }, emptyContent = { FullScreenLoading() },
+        },
+        emptyContent = { FullScreenLoading() },
         loading = uiState.isLoading,
-        onRefresh = onRefreshAccount
+        onRefresh = onRefreshAccount,
     ) {
         when (uiState) {
             is MiniUIState.HasAccount -> hasDataContent(uiState, modifier)
@@ -105,11 +137,11 @@ private fun MiniHomeContent(
                     // if there are no posts, and no error, let the user refresh manually
                     TextButton(
                         onClick = onRefreshAccount,
-                        modifier.fillMaxSize()
+                        modifier.fillMaxSize(),
                     ) {
                         Text(
                             text = uiState.errorMessage,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
                         )
                     }
                 }
@@ -117,7 +149,6 @@ private fun MiniHomeContent(
         }
     }
 }
-
 
 @Composable
 private fun AccountListContent(
@@ -147,18 +178,19 @@ val AccountImageRound = RoundedCornerShape(16.dp)
 @Composable
 fun AccountItem(account: MiniAccount, onItemClicked: (MiniAccount) -> Unit, onLoginClicked: (MiniAccount) -> Unit) {
     Card(
-        onClick = { onItemClicked(account) }, modifier = Modifier
+        onClick = { onItemClicked(account) },
+        modifier = Modifier
             .padding(8.dp)
-            .fillMaxWidth()
+            .fillMaxWidth(),
     ) {
-
         Row() {
             Image(
-                painterResource(R.mipmap.mt_logo_zycs), null,
+                painterResource(R.mipmap.mt_logo_zycs),
+                null,
                 modifier = Modifier
                     .padding(16.dp)
                     .size(100.dp, 100.dp)
-                    .clip(AccountImageRound)
+                    .clip(AccountImageRound),
             )
             Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -168,7 +200,6 @@ fun AccountItem(account: MiniAccount, onItemClicked: (MiniAccount) -> Unit, onLo
                 }
             }
         }
-
     }
 }
 
@@ -178,7 +209,7 @@ private fun LoadingContent(
     emptyContent: @Composable () -> Unit,
     loading: Boolean,
     onRefresh: () -> Unit,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     if (empty) {
         emptyContent()
@@ -196,7 +227,7 @@ private fun FullScreenLoading() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .wrapContentSize(Alignment.Center)
+            .wrapContentSize(Alignment.Center),
     ) {
         CircularProgressIndicator()
     }

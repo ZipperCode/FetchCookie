@@ -13,7 +13,6 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -62,43 +61,54 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import com.zipper.fetch.cookie.data.UiDataProvider
-import com.zipper.fetch.cookie.model.IDrawDown
+import com.zipper.fetch.cookie.ui.component.VerifyCodeButton
+import com.zipper.fetch.cookie.ui.minimt.model.IDrawDown
+import com.zipper.fetch.cookie.ui.minimt.model.MiniProgramConfig
 import com.zipper.fetch.lottie.LottieWorkingLoadingView
 
 @Preview
 @Composable
 fun LoginScreenPreview() {
-    LoginScreen {
-
-    }
+    LoginScreen(
+        miniProgramItems = UiDataProvider.miniProgramItems,
+        sendCodeAction = {
+        },
+        onLoginSuccess = {
+        },
+    )
 }
 
 @Composable
 fun MiniLoginRoute(viewModel: MiniViewModel) {
-
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LoginScreen(onLoginSuccess: () -> Unit) {
+fun LoginScreen(
+    miniProgramItems: List<MiniProgramConfig>,
+    sendCodeAction: (String) -> Unit,
+    onLoginSuccess: () -> Unit,
+) {
     Scaffold { paddingValues ->
 
-        //TextFields
+        // TextFields
         var phone by remember { mutableStateOf(TextFieldValue("")) }
         var code by remember { mutableStateOf(TextFieldValue("")) }
         var hasError by remember { mutableStateOf(false) }
         val phoneInteractionState = remember { MutableInteractionSource() }
         val codeInteractionState = remember { MutableInteractionSource() }
+        var miniProgram by remember {
+            mutableStateOf(miniProgramItems.firstOrNull())
+        }
 
         LazyColumn(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 16.dp),
         ) {
             item { Spacer(modifier = Modifier.height(20.dp)) }
             item { LottieWorkingLoadingView(context = LocalContext.current) }
@@ -106,7 +116,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                 Text(
                     text = "茅台小程序登录",
                     style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.ExtraBold),
-                    modifier = Modifier.padding(top = 8.dp)
+                    modifier = Modifier.padding(top = 8.dp),
                 )
             }
             item {
@@ -114,10 +124,18 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
             }
 
             item {
-                val list = UiDataProvider.miniProgramItems
-                DrawDownMiniProgram(list.first(), onItemSelected = {
-
-                }, items = list, modifier = Modifier.fillMaxWidth())
+                if (miniProgramItems.isNotEmpty()) {
+                    DrawDownMiniProgram(miniProgramItems.first(), onItemSelected = {
+                        miniProgram = it
+                    }, items = miniProgramItems, modifier = Modifier.fillMaxWidth())
+                } else {
+                    OutlinedTextField(
+                        value = "暂无可用的小程序类型",
+                        onValueChange = {},
+                        maxLines = 1,
+                        enabled = false,
+                    )
+                }
             }
 
             item {
@@ -131,7 +149,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Text,
-                        imeAction = ImeAction.Next
+                        imeAction = ImeAction.Next,
                     ),
                     label = { Text(text = "手机号") },
                     placeholder = { Text(text = "13812345678") },
@@ -152,7 +170,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Done
+                        imeAction = ImeAction.Done,
                     ),
                     label = { Text(text = "验证码") },
                     placeholder = { Text(text = "1234") },
@@ -160,13 +178,14 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                         code = it
                     },
                     trailingIcon = {
-                        Button(
-                            onClick = { /*TODO*/ }, modifier = Modifier
+                        VerifyCodeButton(
+                            modifier = Modifier
                                 .padding(end = 16.dp)
-                                .bounceClick()
-                        ) {
-                            Text(text = "发送验证码")
-                        }
+                                .bounceClick(),
+                            onClick = {
+                                sendCodeAction(phone.text)
+                            },
+                        )
                     },
                     interactionSource = codeInteractionState,
                 )
@@ -189,7 +208,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                         .padding(vertical = 16.dp)
                         .height(50.dp)
                         .clip(CircleShape)
-                        .bounceClick()
+                        .bounceClick(),
                 ) {
                     if (loading) {
                         HorizontalDottedProgressBar()
@@ -201,7 +220,6 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
         }
     }
 }
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -218,14 +236,19 @@ fun <T : IDrawDown> DrawDownMiniProgram(
         mutableStateOf(defaultValue)
     }
 
-    Box(modifier = modifier
-        .onGloballyPositioned { textFieldSize = it.size.toSize() }
-        .clickable { expanded = true }) {
+    Box(
+        modifier = modifier
+            .onGloballyPositioned { textFieldSize = it.size.toSize() }
+            .clickable { expanded = true },
+    ) {
         OutlinedTextField(
-            value = defaultValue.text, onValueChange = {
+            value = defaultValue.text,
+            onValueChange = {
                 onItemSelected(valueState)
             },
-            enabled = false, singleLine = true, leadingIcon = leadingIcon,
+            enabled = false,
+            singleLine = true,
+            leadingIcon = leadingIcon,
             trailingIcon = {
                 IconButton(onClick = { expanded = true }) {
                     if (expanded) {
@@ -241,7 +264,7 @@ fun <T : IDrawDown> DrawDownMiniProgram(
                 disabledTextColor = MaterialTheme.colorScheme.inverseSurface,
                 disabledTrailingIconColor = MaterialTheme.colorScheme.inverseSurface,
             ),
-            modifier = modifier
+            modifier = modifier,
         )
 
         DropdownMenu(
@@ -249,7 +272,7 @@ fun <T : IDrawDown> DrawDownMiniProgram(
             onDismissRequest = { expanded = false },
             modifier = Modifier
                 .requiredSizeIn(maxHeight = 300.dp)
-                .width(with(LocalDensity.current) { textFieldSize.width.toDp() })
+                .width(with(LocalDensity.current) { textFieldSize.width.toDp() }),
         ) {
             items.forEachIndexed { index, item ->
                 DropdownMenuItem(
@@ -260,7 +283,8 @@ fun <T : IDrawDown> DrawDownMiniProgram(
                         valueState = items[index]
                         onItemSelected(items[index])
                         expanded = false
-                    })
+                    },
+                )
             }
         }
     }
@@ -276,10 +300,11 @@ fun HorizontalDottedProgressBar() {
         animationSpec = infiniteRepeatable(
             animation = tween(
                 durationMillis = 700,
-                easing = LinearEasing
+                easing = LinearEasing,
             ),
-            repeatMode = RepeatMode.Reverse
-        ), label = ""
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "",
     )
 
     DrawCanvas(state = state, color = color)
@@ -295,7 +320,6 @@ fun DrawCanvas(
             .fillMaxWidth()
             .height(60.dp),
     ) {
-
         val radius = (4.dp).value
         val padding = (6.dp).value
 
@@ -306,8 +330,8 @@ fun DrawCanvas(
                     brush = SolidColor(color),
                     center = Offset(
                         x = this.center.x + radius * 2 * (i - 3) + padding * (i - 3),
-                        y = this.center.y
-                    )
+                        y = this.center.y,
+                    ),
                 )
             } else {
                 drawCircle(
@@ -315,8 +339,8 @@ fun DrawCanvas(
                     brush = SolidColor(color),
                     center = Offset(
                         x = this.center.x + radius * 2 * (i - 3) + padding * (i - 3),
-                        y = this.center.y
-                    )
+                        y = this.center.y,
+                    ),
                 )
             }
         }
@@ -337,7 +361,7 @@ fun Modifier.bounceClick() = composed {
         .clickable(
             interactionSource = remember { MutableInteractionSource() },
             indication = null,
-            onClick = { }
+            onClick = { },
         )
         .pointerInput(buttonState) {
             awaitPointerEventScope {

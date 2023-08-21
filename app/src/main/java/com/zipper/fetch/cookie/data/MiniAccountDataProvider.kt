@@ -1,6 +1,6 @@
 package com.zipper.fetch.cookie.data
 
-import com.zipper.fetch.cookie.ui.minimt.model.MiniAccount
+import com.zipper.fetch.cookie.dao.MiniAccount
 import kotlin.random.Random
 
 object MiniAccountDataProvider {

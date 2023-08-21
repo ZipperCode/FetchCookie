@@ -1,5 +1,7 @@
 package com.zipper.fetch.cookie.logic
 
+import com.zipper.fetch.cookie.ui.minimt.model.InitMiniProgramData
+import com.zipper.fetch.cookie.ui.minimt.model.MiniProgramConfig
 import com.zipper.fetch.cookie.ui.minimt.model.MiniChannelInfo
 import com.zipper.fetch.cookie.ui.minimt.model.MiniTokenData
 import com.zipper.fetch.core.ext.awaitResponse
@@ -15,6 +17,10 @@ import com.zipper.fetch.core.ext.hmac
 import com.zipper.fetch.core.ext.string
 import com.zipper.fetch.core.ext.toJsonRequestBody
 import com.zipper.fetch.core.ext.typeToken
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.withContext
 import okhttp3.Headers.Companion.toHeaders
 import okhttp3.Request
 import okhttp3.Response
@@ -31,7 +37,7 @@ object MiniProgramHelper {
         "Sec-Fetch-Mode" to "cors",
         "Sec-Fetch-Site" to "cross-site",
         "xweb_xhr" to "1",
-        "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36 MicroMessenger/7.0.20.1781(0x6700143B) NetType/WIFI MiniProgramEnv/Windows WindowsWechat/WMPF XWEB/6945"
+        "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36 MicroMessenger/7.0.20.1781(0x6700143B) NetType/WIFI MiniProgramEnv/Windows WindowsWechat/WMPF XWEB/6945",
     )
 
     /**
@@ -43,6 +49,39 @@ object MiniProgramHelper {
      * ak: Channel
      */
     private val channelMap: MutableMap<String, Int> = mutableMapOf()
+
+    /**
+     * 小程序初始化
+     */
+    suspend fun init(miniProgramList: List<MiniProgramConfig>): List<InitMiniProgramData> {
+        return withContext(Dispatchers.IO) {
+            val tasks = mutableListOf<Deferred<InitMiniProgramData?>>()
+            for (miniProgramItems in miniProgramList) {
+                //
+                val task: Deferred<InitMiniProgramData?> = async {
+                    val keyPair = getInfoKey(miniProgramItems.appId)
+                    if (keyPair != null) {
+                        val (ak, sk) = keyPair
+                        val channelResp = getChannelResp(miniProgramItems.appId, ak, sk)
+                        if (channelResp.isSuccess()) {
+                            val channel = channelResp.getInt("data")
+                            return@async InitMiniProgramData(
+                                miniProgramItems.appId,
+                                miniProgramItems.text,
+                                channel,
+                                ak,
+                                sk,
+                            )
+                        }
+                    }
+                    return@async null
+                }
+                tasks.add(task)
+            }
+
+            return@withContext tasks.mapNotNull { it.await() }.toList()
+        }
+    }
 
     suspend fun getInfo(appId: String): Map<String, Any>? {
         val body = """{"appId":"$appId"}"""
@@ -72,11 +111,24 @@ object MiniProgramHelper {
         return Pair(ak, sk)
     }
 
+    private suspend fun getChannelResp(appId: String, ak: String, sk: String): Map<String, Any>? {
+        return post(
+            "/front-manager/api/get/channelId",
+            """{"appId":"$appId"}""",
+            0,
+            ak,
+            sk,
+        )
+    }
+
     private suspend fun getChannelBetweenTime(appId: String, ak: String, sk: String): Long {
         if (!betweenTimeMap.containsKey(ak) || betweenTimeMap[ak] == 0L) {
             val resp = post(
                 "/front-manager/api/get/channelId",
-                """{"appId":"$appId"}""", 0, ak, sk
+                """{"appId":"$appId"}""",
+                0,
+                ak,
+                sk,
             )
 
             if (resp.isSuccess()) {
@@ -96,7 +148,7 @@ object MiniProgramHelper {
         val tokenMap = mapOf(
             "Channel" to "miniapp",
             "DataType" to "json",
-            "X-access-token" to token
+            "X-access-token" to token,
         )
 
         val (ak, sk) = getInfoKey(appId)
@@ -107,8 +159,10 @@ object MiniProgramHelper {
         val queryTokenResp = post(
             "/front-manager/api/customer/queryById/token",
             """{"channel":"h5"}""",
-            betweenTime, ak, sk,
-            tokenMap
+            betweenTime,
+            ak,
+            sk,
+            tokenMap,
         ) ?: return Result.failure(Exception("queryTokenResp is null "))
 
         if (!queryTokenResp.isSuccess()) {
@@ -125,8 +179,14 @@ object MiniProgramHelper {
 
         return Result.success(
             MiniTokenData(
-                openId, realName, phone, isRealNameAuth, idCard, phoneIsBind, status
-            )
+                openId,
+                realName,
+                phone,
+                isRealNameAuth,
+                idCard,
+                phoneIsBind,
+                status,
+            ),
         )
     }
 
@@ -138,8 +198,13 @@ object MiniProgramHelper {
     }
 
     suspend fun login(
-        phone: String, verifyCode: String, appId: String,
-        code: String, betweenTime: Long, ak: String, sk: String
+        phone: String,
+        verifyCode: String,
+        appId: String,
+        code: String,
+        betweenTime: Long,
+        ak: String,
+        sk: String,
     ): String {
         val url = "/front-manager/api/login/phoneLogin"
         val body = """{"phone":"$phone","securityCode":"$verifyCode","appId":"$appId","code":"$code"}"""
@@ -156,7 +221,7 @@ object MiniProgramHelper {
         val tokenMap = mapOf(
             "Channel" to "miniapp",
             "DataType" to "json",
-            "X-access-token" to token
+            "X-access-token" to token,
         )
         val betweenTime = getChannelBetweenTime(appId, ak, sk)
         val resp = post(url, body, betweenTime, ak, sk, tokenMap)
@@ -190,8 +255,8 @@ object MiniProgramHelper {
                 purchaseStartTime,
                 purchaseEndTime,
                 appointCounts,
-                isAppoint
-            )
+                isAppoint,
+            ),
         )
     }
 
@@ -207,7 +272,7 @@ object MiniProgramHelper {
         val tokenMap = mapOf(
             "Channel" to "miniapp",
             "DataType" to "json",
-            "X-access-token" to token
+            "X-access-token" to token,
         )
         return post(url, body, betweenTime, ak, sk, tokenMap).isSuccess()
     }
@@ -224,15 +289,18 @@ object MiniProgramHelper {
         val tokenMap = mapOf(
             "Channel" to "miniapp",
             "DataType" to "json",
-            "X-access-token" to token
+            "X-access-token" to token,
         )
         return Result.success(post(url, body, betweenTime, ak, sk, tokenMap).isSuccess())
     }
 
     suspend fun post(
-        url: String, body: String,
-        serviceBetweenTime: Long, ak: String, sk: String,
-        headers: Map<String, String> = mutableMapOf()
+        url: String,
+        body: String,
+        serviceBetweenTime: Long,
+        ak: String,
+        sk: String,
+        headers: Map<String, String> = mutableMapOf(),
     ): Map<String, Any>? {
         val requestHeaders = HashMap(commonHeaders)
         requestHeaders.putAll(headers)
@@ -278,7 +346,6 @@ object MiniProgramHelper {
         return get("message").toString()
     }
 
-
     object Crypto {
         private val sdf = SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss 'GMT'", Locale.ENGLISH)
 
@@ -301,14 +368,13 @@ object MiniProgramHelper {
             return body.hmac(sk).base64().string()
         }
 
-
         fun encryptionData(
             method: String,
             url: String,
             body: String,
             betweenTime: Long,
             ak: String,
-            sk: String
+            sk: String,
         ): MutableMap<String, String> {
             val date = sdf.format(Date(System.currentTimeMillis() + betweenTime))
             val signature = signature(method, url, ak, sk, date)
@@ -318,7 +384,7 @@ object MiniProgramHelper {
                 "X-HMAC-ACCESS-KEY" to ak,
                 "X-HMAC-ALGORITHM" to "hmac-sha256",
                 "X-HMAC-DIGEST" to digest,
-                "X-HMAC-Date" to date
+                "X-HMAC-Date" to date,
             )
         }
     }

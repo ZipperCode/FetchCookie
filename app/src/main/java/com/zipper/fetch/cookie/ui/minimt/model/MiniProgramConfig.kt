@@ -1,11 +1,11 @@
-package com.zipper.fetch.cookie.model
+package com.zipper.fetch.cookie.ui.minimt.model
 
 
 interface IDrawDown {
     val text: String
 }
 
-sealed class MiniProgramItems(
+sealed class MiniProgramConfig(
     override val text: String,
     val appId: String,
     val host: String,
@@ -15,7 +15,7 @@ sealed class MiniProgramItems(
     val phoneLoginCode: String
 ) : IDrawDown {
 
-    object Zhcs : MiniProgramItems(
+    object Zhcs : MiniProgramConfig(
         "遵义出山",
         "wx624149b74233c99a",
         "https://gw.huiqunchina.com",
@@ -25,7 +25,7 @@ sealed class MiniProgramItems(
         "0c1D4hGa12ERSF0xUAHa1fmYeY0D4hGw"
     )
 
-    object Lgkx : MiniProgramItems(
+    object Lgkx : MiniProgramConfig(
         "乐港空巷",
         "wx613ba8ea6a002aa8",
         "https://gw.huiqunchina.com",
@@ -40,7 +40,7 @@ sealed class MiniProgramItems(
      * openId: oK-hU5EHb3VnwkcMON6qOeK9fWNc
      * toekn: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMDE3OTc1MjUxIiwiaXNzIjoiZ21hbGwtc3RhcnNreSIsImxvZ0lkIjoibnVsbCIsImV4cCI6MTcwMDI4NjI4NCwiaWF0IjoxNjkyNTEwMjg0fQ.KutlqqiX8QliZphKJSSUyPZxHODnEKVBq980uE1Uf98
      */
-    object Gyjp: MiniProgramItems(
+    object Gyjp: MiniProgramConfig(
         "贵盐精品",
         "wx5508e31ffe9366b8",
         "https://gw.huiqunchina.com",
@@ -53,7 +53,7 @@ sealed class MiniProgramItems(
     /**
      * referer: https://servicewechat.com/wxded2e7e6d60ac09d/11/page-frame.html
      */
-    object Xlhg: MiniProgramItems(
+    object Xlhg: MiniProgramConfig(
         "新联惠购",
         "wxded2e7e6d60ac09d",
         "https://gw.huiqunchina.com",
@@ -66,7 +66,7 @@ sealed class MiniProgramItems(
     /**
      * referer: https://servicewechat.com/wx61549642d715f361/11/page-frame.html
      */
-    object Glyp: MiniProgramItems(
+    object Glyp: MiniProgramConfig(
         "新联惠购",
         "wx61549642d715f361",
         "https://gw.huiqunchina.com",
@@ -76,7 +76,7 @@ sealed class MiniProgramItems(
         "0e1uysGa1g4nTF07xoGa1i3apK2uysGX"
     )
 
-    object Hljg: MiniProgramItems(
+    object Hljg: MiniProgramConfig(
         "航旅今购",
         "wx936aa5357931e226",
         "https://gw.huiqunchina.com",
@@ -86,7 +86,7 @@ sealed class MiniProgramItems(
         "0f1CRbGa1EBwSF0VzvFa1q03lD4CRbGz"
     )
 
-    object Yljx: MiniProgramItems(
+    object Yljx: MiniProgramConfig(
         "驿路今寻",
         "wxee0ce83ab4b26f9c",
         "https://gw.huiqunchina.com",

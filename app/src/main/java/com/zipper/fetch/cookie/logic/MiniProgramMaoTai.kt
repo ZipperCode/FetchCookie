@@ -1,9 +1,8 @@
 package com.zipper.fetch.cookie.logic
 
-import com.zipper.fetch.cookie.model.MiniProgramItems
+import com.zipper.fetch.cookie.ui.minimt.model.MiniProgramConfig
 import com.zipper.fetch.cookie.util.StoreManager
 import com.zipper.fetch.core.ext.awaitResponse
-import com.zipper.fetch.core.ext.base64
 import com.zipper.fetch.core.ext.getBoolean
 import com.zipper.fetch.core.ext.getInt
 import com.zipper.fetch.core.ext.getLong
@@ -11,21 +10,15 @@ import com.zipper.fetch.core.ext.getMap
 import com.zipper.fetch.core.ext.getString
 import com.zipper.fetch.core.ext.globalGson
 import com.zipper.fetch.core.ext.globalHttpClient
-import com.zipper.fetch.core.ext.hmac
-import com.zipper.fetch.core.ext.string
 import com.zipper.fetch.core.ext.toDateFmt
 import com.zipper.fetch.core.ext.toJsonRequestBody
 import com.zipper.fetch.core.ext.typeToken
 import okhttp3.Headers.Companion.toHeaders
 import okhttp3.Request
 import okhttp3.Response
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
 
 class MiniProgramMaoTai(
-    private val config: MiniProgramItems,
+    private val config: MiniProgramConfig,
     private val dataStore: StoreManager
 ) {
 

@@ -1,7 +1,7 @@
 package com.zipper.fetch.cookie.data
 
 import com.zipper.fetch.cookie.model.AppFunctionItems
-import com.zipper.fetch.cookie.model.MiniProgramItems
+import com.zipper.fetch.cookie.ui.minimt.model.MiniProgramConfig
 
 object UiDataProvider {
 
@@ -10,12 +10,12 @@ object UiDataProvider {
     )
 
     val miniProgramItems = listOf(
-        MiniProgramItems.Zhcs,
-        MiniProgramItems.Lgkx,
-        MiniProgramItems.Gyjp,
-        MiniProgramItems.Xlhg,
-        MiniProgramItems.Hljg,
-        MiniProgramItems.Yljx,
+        MiniProgramConfig.Zhcs,
+        MiniProgramConfig.Lgkx,
+        MiniProgramConfig.Gyjp,
+        MiniProgramConfig.Xlhg,
+        MiniProgramConfig.Hljg,
+        MiniProgramConfig.Yljx,
 
     )
 }
