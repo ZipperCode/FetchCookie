@@ -24,17 +24,18 @@ import androidx.compose.ui.unit.dp
 import com.zipper.fetch.cookie.R
 import com.zipper.fetch.cookie.data.UiDataProvider
 import com.zipper.fetch.cookie.model.AppFunctionItems
+import com.zipper.fetch.cookie.ui.AppScreen
 
 @Composable
 fun HomeRoute(
-    onRoute: (String) -> Unit
+    onRoute: (AppScreen) -> Unit
 ){
     HomeScreen(onRoute = onRoute)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(onRoute: (String) -> Unit) {
+fun HomeScreen(onRoute: (AppScreen) -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(title = { Text(text = "功能列表") }, actions = {
@@ -51,7 +52,7 @@ fun HomeScreen(onRoute: (String) -> Unit) {
             HomeScreenContent(
                 modifier = Modifier.padding(paddingValues)
             ){
-                onRoute(it.routePath)
+                onRoute(it.appScreen)
             }
         }
     )

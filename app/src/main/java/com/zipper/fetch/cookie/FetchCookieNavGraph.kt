@@ -8,6 +8,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -15,17 +17,28 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.zipper.fetch.cookie.ui.AppDestination.MTScreenRoute
 import com.zipper.fetch.cookie.ui.AppDestination.MainScreenRoute
+import com.zipper.fetch.cookie.ui.AppDestination.MiniAccountLoginScreenRoute
 import com.zipper.fetch.cookie.ui.AppDestination.MiniMTAccountScreenRoute
+import com.zipper.fetch.cookie.ui.AppScreen
 import com.zipper.fetch.cookie.ui.home.HomeRoute
 import com.zipper.fetch.cookie.ui.minimt.MiniHomeRoute
+import com.zipper.fetch.cookie.ui.minimt.MiniLoginRoute
 import com.zipper.fetch.cookie.ui.minimt.MiniViewModel
 import com.zipper.fetch.cookie.util.StoreManager
+
+
+private fun NavGraphBuilder.composable(
+    screen: AppScreen,
+    content: @Composable (NavBackStackEntry) -> Unit
+) {
+    composable(screen.route, content = content)
+}
 
 @Composable
 fun FetchCookieNavGraph(
     navHostController: NavHostController,
     modifier: Modifier = Modifier,
-    startDestination: String = MainScreenRoute,
+    startDestination: AppScreen = AppScreen.MiniHome,
 ) {
     Log.d("BAAA", "FetchCookieNavGraph")
 
@@ -41,45 +54,29 @@ fun FetchCookieNavGraph(
         factory = MiniViewModel.provideFactory(dataStore),
     )
 
-    NavHost(navController = navHostController, startDestination = startDestination, modifier = modifier) {
-        composable(MainScreenRoute) {
+    NavHost(navController = navHostController, startDestination = startDestination.route, modifier = modifier) {
+        composable(AppScreen.App) {
             Log.d("BAAA", "MainScreenRoute")
             HomeRoute(onRoute = navigationActions.navigateRoute)
         }
 
-        composable(MTScreenRoute) {
-            Log.d("BAAA", "MTScreenRoute")
-
-            MiniHomeRoute(miniViewModel) {
-            }
+        composable(AppScreen.MiniHome) {
+            MiniHomeRoute(miniViewModel, onRoute = navigationActions.navigateRoute)
         }
 
-        composable(
-            route = "$MiniMTAccountScreenRoute/{type}",
-            arguments = listOf(
-                navArgument("type") {
-                    type = NavType.IntType
-                    defaultValue = 0
-                    nullable = false
-                },
-            ),
-        ) {
-//            val type by remember {
-//                mutableStateOf(it.arguments!!.getInt("type"))
-//            }
-//
-//            val homeViewModel: MiniMTViewModel = viewModel(
-//                factory = MiniMTViewModel.provideFactory(type)
-//            )
-//            Log.d("BAAA", "MTScreenRoute $type $homeViewModel")
-//            // MiniHomeRoute(homeViewModel)
+        composable(AppScreen.MiniLogin) {
+            MiniLoginRoute(miniViewModel, onPopBackStack = navigationActions.popBackStack)
         }
     }
 }
 
 private class AppNavActions(val navController: NavHostController) {
 
-    val navigateRoute: (String) -> Unit = {
-        navController.navigate(it)
+    val navigateRoute: (AppScreen) -> Unit = {
+        navController.navigate(it.route)
+    }
+
+    val popBackStack: () -> Unit = {
+        navController.popBackStack()
     }
 }

@@ -1,5 +1,6 @@
 package com.zipper.fetch.cookie.logic
 
+import com.zipper.fetch.cookie.data.UiDataProvider.miniProgramItems
 import com.zipper.fetch.cookie.ui.minimt.model.InitMiniProgramData
 import com.zipper.fetch.cookie.ui.minimt.model.MiniProgramConfig
 import com.zipper.fetch.cookie.ui.minimt.model.MiniChannelInfo
@@ -71,6 +72,8 @@ object MiniProgramHelper {
                                 channel,
                                 ak,
                                 sk,
+                                miniProgramItems.sendCodeCode,
+                                miniProgramItems.phoneLoginCode
                             )
                         }
                     }
@@ -80,6 +83,23 @@ object MiniProgramHelper {
             }
 
             return@withContext tasks.mapNotNull { it.await() }.toList()
+        }
+    }
+
+    suspend fun testInit(miniProgramList: List<MiniProgramConfig>): List<InitMiniProgramData> {
+        return withContext(Dispatchers.IO) {
+
+            return@withContext miniProgramList.map { miniProgramItems ->
+                InitMiniProgramData(
+                    miniProgramItems.appId,
+                    miniProgramItems.text,
+                    5,
+                    "ak",
+                    "sk",
+                    miniProgramItems.sendCodeCode,
+                    miniProgramItems.phoneLoginCode
+                )
+            }.toList()
         }
     }
 

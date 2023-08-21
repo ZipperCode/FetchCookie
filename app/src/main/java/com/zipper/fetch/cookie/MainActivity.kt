@@ -17,6 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.view.WindowCompat
 import androidx.navigation.compose.rememberNavController
+import com.zipper.fetch.cookie.ui.AppDestination
+import com.zipper.fetch.cookie.ui.AppScreen
 import com.zipper.fetch.cookie.ui.theme.FetchCookieTheme
 import com.zipper.fetch.cookie.ui.theme.SystemUiController
 import com.zipper.fetch.cookie.ui.theme.TransparentSystemBars
@@ -49,7 +51,7 @@ fun FetchCookieContent() {
         color = MaterialTheme.colorScheme.background,
     ) {
         val navController = rememberNavController()
-        FetchCookieNavGraph(navController)
+        FetchCookieNavGraph(navController, startDestination = AppScreen.MiniHome)
     }
 }
 

@@ -37,12 +37,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -63,46 +66,61 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
 import com.zipper.fetch.cookie.data.UiDataProvider
 import com.zipper.fetch.cookie.ui.component.VerifyCodeButton
 import com.zipper.fetch.cookie.ui.minimt.model.IDrawDown
+import com.zipper.fetch.cookie.ui.minimt.model.InitMiniProgramData
 import com.zipper.fetch.cookie.ui.minimt.model.MiniProgramConfig
 import com.zipper.fetch.lottie.LottieWorkingLoadingView
+import kotlinx.coroutines.launch
 
 @Preview
 @Composable
 fun LoginScreenPreview() {
-    LoginScreen(
-        miniProgramItems = UiDataProvider.miniProgramItems,
-        sendCodeAction = {
-        },
-        onLoginSuccess = {
-        },
-    )
+//    LoginScreen(
+//        miniProgramList = UiDataProvider.miniProgramItems,
+//        sendCodeAction = {
+//        },
+//        onLoginSuccess = {
+//        },
+//    )
 }
 
 @Composable
-fun MiniLoginRoute(viewModel: MiniViewModel) {
+fun MiniLoginRoute(viewModel: MiniViewModel, onPopBackStack: () -> Unit) {
+    val miniProgramList by viewModel.miniProgramState.collectAsStateWithLifecycle()
+    LoginScreen(miniProgramList = miniProgramList, sendCodeAction = viewModel::sendCode) { miniProgram, phone, code ->
+        viewModel.login(miniProgram, phone, code) {
+            onPopBackStack()
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    miniProgramItems: List<MiniProgramConfig>,
-    sendCodeAction: (String) -> Unit,
-    onLoginSuccess: () -> Unit,
+    miniProgramList: List<InitMiniProgramData>,
+    sendCodeAction: (InitMiniProgramData, String) -> Unit,
+    loginAction: (InitMiniProgramData, String, String) -> Unit
 ) {
-    Scaffold { paddingValues ->
+    val snackBarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackBarHostState) },
+    ) { paddingValues ->
 
         // TextFields
         var phone by remember { mutableStateOf(TextFieldValue("")) }
-        var code by remember { mutableStateOf(TextFieldValue("")) }
+        var code by remember { mutableStateOf(TextFieldValue("1234")) }
         var hasError by remember { mutableStateOf(false) }
         val phoneInteractionState = remember { MutableInteractionSource() }
         val codeInteractionState = remember { MutableInteractionSource() }
-        var miniProgram by remember {
-            mutableStateOf(miniProgramItems.firstOrNull())
+        var miniProgram by remember(miniProgramList) {
+            mutableStateOf(miniProgramList.firstOrNull())
         }
+        var loading by remember { mutableStateOf(false) }
 
         LazyColumn(
             modifier = Modifier
@@ -124,10 +142,11 @@ fun LoginScreen(
             }
 
             item {
-                if (miniProgramItems.isNotEmpty()) {
-                    DrawDownMiniProgram(miniProgramItems.first(), onItemSelected = {
+                if (miniProgramList.isNotEmpty()) {
+                    miniProgram = miniProgramList.first()
+                    DrawDownMiniProgram(miniProgram!!, onItemSelected = {
                         miniProgram = it
-                    }, items = miniProgramItems, modifier = Modifier.fillMaxWidth())
+                    }, items = miniProgramList, modifier = Modifier.fillMaxWidth())
                 } else {
                     OutlinedTextField(
                         value = "暂无可用的小程序类型",
@@ -183,7 +202,13 @@ fun LoginScreen(
                                 .padding(end = 16.dp)
                                 .bounceClick(),
                             onClick = {
-                                sendCodeAction(phone.text)
+                                if (miniProgram == null) {
+                                    coroutineScope.launch {
+                                        snackBarHostState.showSnackbar("还未选择一个小程序类型")
+                                    }
+                                } else {
+                                    sendCodeAction(miniProgram!!, phone.text)
+                                }
                             },
                         )
                     },
@@ -191,7 +216,6 @@ fun LoginScreen(
                 )
             }
             item {
-                var loading by remember { mutableStateOf(false) }
                 Button(
                     onClick = {
                         if (phone.text.isEmpty() || code.text.isEmpty()) {
@@ -200,7 +224,13 @@ fun LoginScreen(
                         } else {
                             loading = true
                             hasError = false
-                            onLoginSuccess.invoke()
+                            if (miniProgram == null) {
+                                coroutineScope.launch {
+                                    snackBarHostState.showSnackbar("还未选择一个小程序类型")
+                                }
+                            } else {
+                                loginAction(miniProgram!!, phone.text, code.text)
+                            }
                         }
                     },
                     modifier = Modifier
@@ -292,7 +322,7 @@ fun <T : IDrawDown> DrawDownMiniProgram(
 
 @Composable
 fun HorizontalDottedProgressBar() {
-    val color = MaterialTheme.colorScheme.primary
+    val color = Color.Blue
     val transition = rememberInfiniteTransition(label = "")
     val state by transition.animateFloat(
         initialValue = 0f,

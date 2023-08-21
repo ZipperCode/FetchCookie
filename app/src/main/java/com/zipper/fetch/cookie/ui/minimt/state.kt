@@ -25,7 +25,6 @@ sealed interface MiniPageUiState {
         val message: String,
     ) : MiniPageUiState
 
-    data class Content(
-        val initMiniProgramList: List<InitMiniProgramData>,
+    class Content(
     ) : MiniPageUiState
 }

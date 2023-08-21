@@ -5,14 +5,14 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "mini_account")
-data class MiniAccount(
+data class MiniAccount constructor(
     val phone: String,
     val token: String,
     val type: Int,
-    val isExpired: Boolean = true,
+    val isExpired: Boolean = false,
     val lastAppointTime: Long = 0,
 ) {
     @PrimaryKey(autoGenerate = true)
     @ColumnInfo(name = "id", typeAffinity = ColumnInfo.INTEGER)
-    val id: Int? = null
+    var id: Int? = null
 }

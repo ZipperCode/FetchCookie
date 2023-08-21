@@ -79,8 +79,7 @@ fun LoadingContent(
 
     Column(
         modifier = modifier
-            .fillMaxSize()
-            .background(color = MaterialTheme.colorScheme.primary),
+            .fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

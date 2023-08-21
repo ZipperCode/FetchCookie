@@ -1,16 +1,25 @@
 package com.zipper.fetch.cookie.ui.minimt
 
 import android.util.Log
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.zipper.fetch.cookie.dao.AppDataBase
 import com.zipper.fetch.cookie.data.UiDataProvider
 import com.zipper.fetch.cookie.logic.MiniProgramHelper
 import com.zipper.fetch.cookie.ui.minimt.model.InitMiniProgramData
 import com.zipper.fetch.cookie.dao.MiniAccount
+import com.zipper.fetch.cookie.dao.MiniAccountDao
+import com.zipper.fetch.cookie.logic.MiniProgramHelper.init
 import com.zipper.fetch.cookie.util.StoreManager
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -20,6 +29,14 @@ class MiniViewModel(
     private val dataStore: StoreManager,
 ) : ViewModel() {
     private val viewModelState = MutableStateFlow(MiniViewModelState(true))
+
+    val miniProgramState = viewModelState.map {
+        it.miniProgramInitList
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.Lazily,
+        viewModelState.value.miniProgramInitList
+    )
 
     val uiState = viewModelState.map {
         it.toUiState()
@@ -33,8 +50,35 @@ class MiniViewModel(
         it.toPageUiState()
     }.stateIn(viewModelScope, SharingStarted.Eagerly, viewModelState.value.toPageUiState())
 
+
+    private val accountDao: MiniAccountDao by lazy {
+        AppDataBase.current.getMiniAccountDao()
+    }
+
+
     init {
         initMiniProgram()
+    }
+
+
+    fun initMiniProgram() {
+        viewModelState.update { it.copy(pageLoading = true) }
+        viewModelScope.launch {
+            val miniList = UiDataProvider.miniProgramItems
+            val miniProgramInitList = MiniProgramHelper.testInit(miniList)
+            viewModelState.update { it.copy(miniProgramInitList = miniProgramInitList, pageLoading = false) }
+            loadAccountList()
+        }
+    }
+
+    fun loadAccountList() {
+        Log.e("BAAA", "Loading Account")
+        viewModelState.update { it.copy(isLoading = true) }
+        viewModelScope.launch {
+            accountDao.allUsers().collect { accountList ->
+                viewModelState.update { it.copy(isLoading = false, accountList = accountList) }
+            }
+        }
     }
 
     fun sendCode(initMiniProgramData: InitMiniProgramData, phone: String) {
@@ -43,20 +87,14 @@ class MiniViewModel(
         }
     }
 
-    fun initMiniProgram() {
-        viewModelState.update { it.copy(pageLoading = true) }
+    fun login(initMiniProgramData: InitMiniProgramData, phone: String, code: String, onLoginSuccess: () -> Unit) {
         viewModelScope.launch {
-            val miniList = UiDataProvider.miniProgramItems
-            val miniProgramInitList = MiniProgramHelper.init(miniList)
-            viewModelState.update { it.copy(miniProgramInitList = miniProgramInitList, pageLoading = false) }
-        }
-    }
-
-    fun loadAccountList() {
-        Log.e("BAAA", "Loading Account")
-        viewModelState.update { it.copy(isLoading = true) }
-        viewModelScope.launch {
-
+            accountDao.insert(
+                MiniAccount(
+                    phone, "token", 0
+                )
+            )
+            onLoginSuccess()
         }
     }
 
@@ -91,7 +129,7 @@ private data class MiniViewModelState(
         if (pageLoading) {
             return MiniPageUiState.Loading
         } else if (miniProgramInitList.isNotEmpty()) {
-            return MiniPageUiState.Content(miniProgramInitList)
+            return MiniPageUiState.Content()
         }
         return MiniPageUiState.Error("初始化小程序失败")
     }

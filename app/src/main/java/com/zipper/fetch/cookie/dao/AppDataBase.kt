@@ -10,7 +10,7 @@ import com.zipper.fetch.cookie.App
  * @author zhangzhipeng
  * @date 2023/8/21
  */
-@Database(entities = [MiniAccount::class], version = 1)
+@Database(entities = [MiniAccount::class], version = 1, exportSchema = false)
 abstract class AppDataBase : RoomDatabase() {
 
     abstract fun getMiniAccountDao(): MiniAccountDao
