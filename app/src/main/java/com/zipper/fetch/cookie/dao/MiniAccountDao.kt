@@ -21,6 +21,15 @@ interface MiniAccountDao {
     @Update
     suspend fun update(account: MiniAccount)
 
+    @Query("SELECT count(*) FROM mini_account")
+    suspend fun count(): Long
+
+    @Query("SELECT * FROM mini_account WHERE type = :type and phone = :phone")
+    suspend fun get(type: Int, phone: String): MiniAccount?
+
     @Query("SELECT * FROM mini_account")
     fun allUsers(): Flow<List<MiniAccount>>
+
+    @Query("SELECT * FROM mini_account")
+    suspend fun getAllUsers(): List<MiniAccount>
 }

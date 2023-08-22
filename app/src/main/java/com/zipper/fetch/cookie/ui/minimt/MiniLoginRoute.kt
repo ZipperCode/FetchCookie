@@ -241,11 +241,15 @@ fun LoginScreen(
                                     snackBarHostState.showSnackbar("还未选择一个小程序类型")
                                 }
                             } else {
-                                coroutineScope.launch {
-                                    viewModel.login(miniProgram, phone.text, code.text) {
+                                viewModel.login(miniProgram, phone.text, code.text,
+                                    onLoginSuccess = {
                                         onPopBackStack()
+                                    }, onLoginFailure = {
+                                        coroutineScope.launch {
+                                            snackBarHostState.showSnackbar(it)
+                                        }
                                     }
-                                }
+                                )
                             }
                         }
                     },

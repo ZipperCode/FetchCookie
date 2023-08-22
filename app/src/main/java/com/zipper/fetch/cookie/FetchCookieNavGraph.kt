@@ -13,10 +13,12 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.zipper.fetch.cookie.dao.AppDataBase
 import com.zipper.fetch.cookie.ui.AppScreen
 import com.zipper.fetch.cookie.ui.home.HomeRoute
 import com.zipper.fetch.cookie.ui.minimt.MiniHomeRoute
 import com.zipper.fetch.cookie.ui.minimt.MiniLoginRoute
+import com.zipper.fetch.cookie.ui.minimt.MiniRepository
 import com.zipper.fetch.cookie.ui.minimt.MiniViewModel
 import com.zipper.fetch.cookie.util.StoreManager
 
@@ -39,12 +41,8 @@ fun FetchCookieNavGraph(
         AppNavActions(navHostController)
     }
 
-    val context = LocalContext.current
-    val dataStore by remember(context) {
-        mutableStateOf(StoreManager(context))
-    }
     val miniViewModel: MiniViewModel = viewModel(
-        factory = MiniViewModel.provideFactory(dataStore),
+        factory = MiniViewModel.provideFactory(MiniRepository(AppDataBase.current.getMiniAccountDao())),
     )
 
     NavHost(navController = navHostController, startDestination = startDestination.route, modifier = modifier) {

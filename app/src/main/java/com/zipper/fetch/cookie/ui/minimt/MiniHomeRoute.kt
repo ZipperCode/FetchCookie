@@ -72,6 +72,8 @@ fun MiniHomeScreen(
 ) {
     val pageUiState by miniViewModel.pageUiState.collectAsStateWithLifecycle()
 
+    val loadingMessage by miniViewModel.loadingMessageUiState.collectAsStateWithLifecycle()
+
     val snackBarHostState = remember { SnackbarHostState() }
 
     val coroutineScope = rememberCoroutineScope()
@@ -96,11 +98,13 @@ fun MiniHomeScreen(
             ) {
                 when (pageUiState) {
                     is MiniPageUiState.Loading -> {
-                        LoadingContent()
+                        LoadingContent(loadingMessage = loadingMessage ?: "加载中...")
                     }
 
                     is MiniPageUiState.Error -> {
-                        ErrorContent()
+                        ErrorContent(message = (pageUiState as MiniPageUiState.Error).message){
+                            miniViewModel.loadAccount()
+                        }
                     }
 
                     is MiniPageUiState.Content -> {

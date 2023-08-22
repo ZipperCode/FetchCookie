@@ -28,7 +28,7 @@ import com.zipper.fetch.cookie.R
 @Composable
 fun ErrorContent(
     modifier: Modifier = Modifier,
-    message: String = "",
+    message: String? = "",
     onErrorClicked: () -> Unit = {},
 ) {
     val composition by rememberLottieComposition(
@@ -53,7 +53,7 @@ fun ErrorContent(
             progress = progress,
         )
         Spacer(modifier = Modifier.height(10.dp))
-        if (message.isNotEmpty()) {
+        if (!message.isNullOrEmpty()) {
             Text(message)
             Spacer(modifier = Modifier.height(10.dp))
         }

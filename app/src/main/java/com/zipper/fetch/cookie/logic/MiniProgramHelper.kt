@@ -20,6 +20,9 @@ import com.zipper.fetch.core.ext.typeToken
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import okhttp3.Headers.Companion.toHeaders
 import okhttp3.Request
@@ -30,6 +33,8 @@ import java.util.Locale
 import java.util.TimeZone
 
 object MiniProgramHelper {
+
+    const val HOST = "https://gw.huiqunchina.com"
     private val commonHeaders = mutableMapOf(
         "content-type" to "application/json",
         "Referer" to "https://hqmall.huiqunchina.com/",
@@ -123,15 +128,16 @@ object MiniProgramHelper {
         if (!infoResp.isSuccess()) {
             return null
         }
-        val ak = infoResp.getString("ak")
-        val sk = infoResp.getString("sk")
+        val data = infoResp.getMap("data")
+        val ak = data.getString("ak")
+        val sk = data.getString("sk")
         if (ak.isEmpty() || sk.isEmpty()) {
             return null
         }
         return Pair(ak, sk)
     }
 
-    private suspend fun getChannelResp(appId: String, ak: String, sk: String): Map<String, Any>? {
+    suspend fun getChannelResp(appId: String, ak: String, sk: String): Map<String, Any>? {
         return post(
             "/front-manager/api/get/channelId",
             """{"appId":"$appId"}""",
@@ -263,12 +269,12 @@ object MiniProgramHelper {
         verifyCode: String,
         appId: String,
         code: String,
-        betweenTime: Long,
         ak: String,
         sk: String,
     ): String {
         val url = "/front-manager/api/login/phoneLogin"
         val body = """{"phone":"$phone","securityCode":"$verifyCode","appId":"$appId","code":"$code"}"""
+        val betweenTime = getChannelBetweenTime(appId, ak, sk)
         val resp = post(url, body, betweenTime, ak, sk)
         return resp.getMap("data").getString("token")
     }
@@ -367,7 +373,7 @@ object MiniProgramHelper {
         requestHeaders.putAll(headers)
         requestHeaders.putAll(Crypto.encryptionData("POST", url, body, serviceBetweenTime, ak, sk))
         val request = Request.Builder()
-            .url(url)
+            .url(HOST + url)
             .post(body.toJsonRequestBody())
             .headers(requestHeaders.toHeaders())
             .build()
@@ -393,7 +399,7 @@ object MiniProgramHelper {
         return globalGson.fromJson(string, typeToken<Map<String, Any>>()) ?: return null
     }
 
-    private fun Map<String, Any>?.isSuccess(): Boolean {
+    fun Map<String, Any>?.isSuccess(): Boolean {
         if (this == null) {
             return false
         }
