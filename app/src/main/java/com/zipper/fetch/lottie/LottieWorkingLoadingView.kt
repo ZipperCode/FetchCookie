@@ -15,6 +15,6 @@ fun LottieWorkingLoadingView(context: Context) {
         file = "working.json",
         modifier = Modifier
             .fillMaxWidth()
-            .height(250.dp)
+            .height(200.dp)
     )
 }

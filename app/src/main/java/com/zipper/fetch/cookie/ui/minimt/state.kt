@@ -1,21 +1,7 @@
 package com.zipper.fetch.cookie.ui.minimt
 
-import com.zipper.fetch.cookie.ui.minimt.model.InitMiniProgramData
 import com.zipper.fetch.cookie.dao.MiniAccount
-
-sealed interface MiniUIState {
-    val isLoading: Boolean
-
-    data class NoData(
-        override val isLoading: Boolean,
-        val errorMessage: String? = null,
-    ) : MiniUIState
-
-    data class HasAccount(
-        val accountList: List<MiniAccount>,
-        override val isLoading: Boolean = false,
-    ) : MiniUIState
-}
+import com.zipper.fetch.cookie.ui.minimt.model.MiniProgramInitData
 
 sealed interface MiniPageUiState {
 
@@ -25,6 +11,26 @@ sealed interface MiniPageUiState {
         val message: String,
     ) : MiniPageUiState
 
-    class Content(
-    ) : MiniPageUiState
+    object Content : MiniPageUiState
 }
+
+sealed interface MiniAccountListUiState {
+    val isLoading: Boolean
+
+    data class Empty(
+        override val isLoading: Boolean,
+        val errorMessage: String? = null,
+    ) : MiniAccountListUiState
+
+    data class HasData(
+        val accountUiStateList: List<MiniAccountUiState>,
+        override val isLoading: Boolean = false,
+    ) : MiniAccountListUiState
+}
+
+data class MiniAccountUiState constructor(
+    val account: MiniAccount,
+    val mini: MiniProgramInitData?,
+    val isLoading: Boolean = false,
+    val appointError: String? = null
+)

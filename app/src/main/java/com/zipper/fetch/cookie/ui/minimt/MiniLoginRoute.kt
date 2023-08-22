@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -41,6 +42,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,12 +69,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavController
-import com.zipper.fetch.cookie.data.UiDataProvider
 import com.zipper.fetch.cookie.ui.component.VerifyCodeButton
 import com.zipper.fetch.cookie.ui.minimt.model.IDrawDown
-import com.zipper.fetch.cookie.ui.minimt.model.InitMiniProgramData
-import com.zipper.fetch.cookie.ui.minimt.model.MiniProgramConfig
+import com.zipper.fetch.cookie.ui.minimt.model.MiniProgramInitData
 import com.zipper.fetch.lottie.LottieWorkingLoadingView
 import kotlinx.coroutines.launch
 
@@ -90,24 +89,31 @@ fun LoginScreenPreview() {
 
 @Composable
 fun MiniLoginRoute(viewModel: MiniViewModel, onPopBackStack: () -> Unit) {
-    val miniProgramList by viewModel.miniProgramState.collectAsStateWithLifecycle()
-    LoginScreen(miniProgramList = miniProgramList, sendCodeAction = viewModel::sendCode) { miniProgram, phone, code ->
-        viewModel.login(miniProgram, phone, code) {
-            onPopBackStack()
-        }
-    }
+    LoginScreen(viewModel, onPopBackStack = onPopBackStack)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    miniProgramList: List<InitMiniProgramData>,
-    sendCodeAction: (InitMiniProgramData, String) -> Unit,
-    loginAction: (InitMiniProgramData, String, String) -> Unit
+    viewModel: MiniViewModel,
+    onPopBackStack: () -> Unit,
 ) {
+    val miniProgramList by viewModel.miniProgramUiState.collectAsStateWithLifecycle()
+
     val snackBarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     Scaffold(
+        topBar = {
+            TopAppBar(title = { }, navigationIcon = {
+                Icon(
+                    Icons.Outlined.ArrowBack,
+                    null,
+                    modifier = Modifier.padding(start = 8.dp).clickable {
+                        onPopBackStack()
+                    },
+                )
+            })
+        },
         snackbarHost = { SnackbarHost(snackBarHostState) },
     ) { paddingValues ->
 
@@ -118,9 +124,10 @@ fun LoginScreen(
         val phoneInteractionState = remember { MutableInteractionSource() }
         val codeInteractionState = remember { MutableInteractionSource() }
         var miniProgram by remember(miniProgramList) {
-            mutableStateOf(miniProgramList.firstOrNull())
+            mutableStateOf(MiniProgramInitData.PLACEHOLDER)
         }
         var loading by remember { mutableStateOf(false) }
+        var inSendCode by remember { mutableStateOf(false) }
 
         LazyColumn(
             modifier = Modifier
@@ -128,7 +135,7 @@ fun LoginScreen(
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
         ) {
-            item { Spacer(modifier = Modifier.height(20.dp)) }
+            item { Spacer(modifier = Modifier.height(10.dp)) }
             item { LottieWorkingLoadingView(context = LocalContext.current) }
             item {
                 Text(
@@ -143,8 +150,7 @@ fun LoginScreen(
 
             item {
                 if (miniProgramList.isNotEmpty()) {
-                    miniProgram = miniProgramList.first()
-                    DrawDownMiniProgram(miniProgram!!, onItemSelected = {
+                    DrawDownMiniProgram(miniProgram, onItemSelected = {
                         miniProgram = it
                     }, items = miniProgramList, modifier = Modifier.fillMaxWidth())
                 } else {
@@ -171,7 +177,6 @@ fun LoginScreen(
                         imeAction = ImeAction.Next,
                     ),
                     label = { Text(text = "手机号") },
-                    placeholder = { Text(text = "13812345678") },
                     onValueChange = {
                         phone = it
                     },
@@ -192,7 +197,6 @@ fun LoginScreen(
                         imeAction = ImeAction.Done,
                     ),
                     label = { Text(text = "验证码") },
-                    placeholder = { Text(text = "1234") },
                     onValueChange = {
                         code = it
                     },
@@ -201,14 +205,22 @@ fun LoginScreen(
                             modifier = Modifier
                                 .padding(end = 16.dp)
                                 .bounceClick(),
-                            onClick = {
-                                if (miniProgram == null) {
+                            inSendCode = inSendCode,
+                            onSend = {
+                                if (miniProgram == MiniProgramInitData.PLACEHOLDER) {
+                                    inSendCode = false
                                     coroutineScope.launch {
                                         snackBarHostState.showSnackbar("还未选择一个小程序类型")
                                     }
-                                } else {
-                                    sendCodeAction(miniProgram!!, phone.text)
+                                } else if (!inSendCode) {
+                                    inSendCode = true
+                                    coroutineScope.launch {
+                                        inSendCode = viewModel.sendCode(miniProgram, phone.text)
+                                    }
                                 }
+                            },
+                            onTimeDone = {
+                                inSendCode = false
                             },
                         )
                     },
@@ -224,12 +236,16 @@ fun LoginScreen(
                         } else {
                             loading = true
                             hasError = false
-                            if (miniProgram == null) {
+                            if (miniProgram == MiniProgramInitData.PLACEHOLDER) {
                                 coroutineScope.launch {
                                     snackBarHostState.showSnackbar("还未选择一个小程序类型")
                                 }
                             } else {
-                                loginAction(miniProgram!!, phone.text, code.text)
+                                coroutineScope.launch {
+                                    viewModel.login(miniProgram, phone.text, code.text) {
+                                        onPopBackStack()
+                                    }
+                                }
                             }
                         }
                     },

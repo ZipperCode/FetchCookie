@@ -1,6 +1,5 @@
 package com.zipper.fetch.cookie.ui.minimt
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,7 +17,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -36,54 +33,49 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
-import com.zipper.fetch.cookie.R
-import com.zipper.fetch.cookie.dao.MiniAccount
-import com.zipper.fetch.cookie.ui.AppDestination
 import com.zipper.fetch.cookie.ui.AppScreen
+import kotlinx.coroutines.launch
 
 @Preview
 @Composable
 fun MiniHomeScreenPreview() {
-    val pageUiState = MiniPageUiState.Content()
-    val uiState = MiniUIState.NoData(true)
-    MiniHomeScreen(pageUiState = pageUiState, uiState = uiState, onRoute = {}) {
-//
-    }
+//    val pageUiState = MiniPageUiState.Content()
+//    val uiState = MiniUIState.NoData(true)
+//    MiniHomeScreen(pageUiState = pageUiState, uiState = uiState, onRoute = {}) {
+// //
+//    }
 }
 
 @Composable
 fun MiniHomeRoute(miniViewModel: MiniViewModel, onRoute: (AppScreen) -> Unit) {
-    val uiState by miniViewModel.uiState.collectAsStateWithLifecycle()
-    val pageUiState by miniViewModel.pageUiState.collectAsStateWithLifecycle()
-    MiniHomeScreen(pageUiState, uiState, onRoute = onRoute) {
-        miniViewModel.loadAccountList()
-    }
+    MiniHomeScreen(miniViewModel, onRoute = onRoute)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MiniHomeScreen(
-    pageUiState: MiniPageUiState,
-    uiState: MiniUIState,
+    miniViewModel: MiniViewModel,
     onRoute: (AppScreen) -> Unit,
-    onRefreshAccount: () -> Unit,
 ) {
+    val pageUiState by miniViewModel.pageUiState.collectAsStateWithLifecycle()
+
     val snackBarHostState = remember { SnackbarHostState() }
+
+    val coroutineScope = rememberCoroutineScope()
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackBarHostState) },
         topBar = {
@@ -100,7 +92,7 @@ fun MiniHomeScreen(
             Box(
                 modifier = Modifier
                     .padding(paddingValues)
-                    .fillMaxSize()
+                    .fillMaxSize(),
             ) {
                 when (pageUiState) {
                     is MiniPageUiState.Loading -> {
@@ -112,47 +104,48 @@ fun MiniHomeScreen(
                     }
 
                     is MiniPageUiState.Content -> {
-                        MiniHomeContent(uiState, onRefreshAccount = onRefreshAccount) { uiState: MiniUIState.HasAccount, modifier ->
-                            AccountListContent(uiState.accountList, modifier = modifier, onItemClicked = {
-                            }, onLoginClicked = {
-                            })
-                        }
+                        val accounts by miniViewModel.accounts.collectAsStateWithLifecycle()
+                        AccountListContent(
+                            accounts,
+                            onAppointed = {
+                                coroutineScope.launch {
+                                    miniViewModel.appoint(it)
+                                }
+                            },
+                        )
                     }
 
                     else -> {}
                 }
             }
-
-
         },
     )
 }
 
 @Composable
 private fun MiniHomeContent(
-    uiState: MiniUIState,
-    modifier: Modifier = Modifier,
+    uiState: MiniAccountListUiState,
     onRefreshAccount: () -> Unit,
-    hasDataContent: @Composable (MiniUIState.HasAccount, Modifier) -> Unit,
+    hasDataContent: @Composable (MiniAccountListUiState.HasData) -> Unit,
 ) {
     LoadingContent(
         empty = when (uiState) {
-            is MiniUIState.HasAccount -> false
-            is MiniUIState.NoData -> uiState.isLoading
+            is MiniAccountListUiState.HasData -> false
+            is MiniAccountListUiState.Empty -> uiState.isLoading
         },
         emptyContent = { FullScreenLoading() },
         loading = uiState.isLoading,
         onRefresh = onRefreshAccount,
     ) {
         when (uiState) {
-            is MiniUIState.HasAccount -> hasDataContent(uiState, modifier)
+            is MiniAccountListUiState.HasData -> hasDataContent(uiState)
 
-            is MiniUIState.NoData -> {
+            is MiniAccountListUiState.Empty -> {
                 if (uiState.errorMessage?.isNotEmpty() == true) {
                     // if there are no posts, and no error, let the user refresh manually
                     TextButton(
                         onClick = onRefreshAccount,
-                        modifier.fillMaxSize(),
+                        Modifier.fillMaxSize(),
                     ) {
                         Text(
                             text = uiState.errorMessage,
@@ -167,30 +160,29 @@ private fun MiniHomeContent(
 
 @Composable
 private fun AccountListContent(
-    accountList: List<MiniAccount>,
+    accountUiStateList: List<MiniAccountUiState>,
     modifier: Modifier = Modifier,
-    onItemClicked: (MiniAccount) -> Unit,
-    onLoginClicked: (MiniAccount) -> Unit,
+    onAppointed: (MiniAccountUiState) -> Unit,
     state: LazyListState = rememberLazyListState(),
 ) {
     Column(modifier = modifier) {
         Box(modifier = Modifier.fillMaxWidth()) {
             Column {
-                Text(text = "当前账号数量: ${accountList.size}")
-                Row {
-                    Button(onClick = { /*TODO*/ }) {
-                        Text(text = "一键校验账号状态")
-                    }
-                    Button(onClick = { /*TODO*/ }) {
-                        Text(text = "一键预约")
-                    }
-                }
+                Text(text = "当前账号数量: ${accountUiStateList.size}")
+//                Row {
+//                    Button(onClick = { /*TODO*/ }) {
+//                        Text(text = "一键校验账号状态")
+//                    }
+//                    Button(onClick = { /*TODO*/ }) {
+//                        Text(text = "一键预约")
+//                    }
+//                }
             }
         }
         LazyColumn(state = state) {
-            accountList.forEach { account ->
+            accountUiStateList.forEach { account ->
                 item {
-                    AccountItem(account, onItemClicked, onLoginClicked)
+                    AccountItem(account, onAppointed)
                 }
             }
         }
@@ -202,30 +194,28 @@ val AccountImageRound = RoundedCornerShape(16.dp)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountItem(
-    account: MiniAccount,
-    onItemClicked: (MiniAccount) -> Unit,
-    onLoginClicked: (MiniAccount) -> Unit
+    miniAccountUiState: MiniAccountUiState,
+    onAppointed: (MiniAccountUiState) -> Unit,
 ) {
+
     Card(
-        onClick = { onItemClicked(account) },
+        onClick = { },
         modifier = Modifier
             .padding(8.dp)
             .fillMaxWidth()
             .height(180.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
     ) {
-
         Column(modifier = Modifier.padding(8.dp)) {
             Row(modifier = Modifier.fillMaxWidth()) {
-
                 Box(
                     modifier = Modifier
                         .align(Alignment.CenterVertically)
                         .clip(AccountImageRound)
-                        .background(Color.Red)
+                        .background(Color.Red),
                 ) {
                     Text(
-                        text = "遵义出山",
+                        text = miniAccountUiState.mini?.text ?: "不可用",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(5.dp),
@@ -238,10 +228,9 @@ fun AccountItem(
                     text = "手机号: ",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.CenterVertically)
+                    modifier = Modifier.align(Alignment.CenterVertically),
                 )
-                Text(text = account.phone, fontSize = 16.sp, modifier = Modifier.align(Alignment.CenterVertically))
-
+                Text(text = miniAccountUiState.account.phone, fontSize = 16.sp, modifier = Modifier.align(Alignment.CenterVertically))
             }
             Spacer(modifier = Modifier.height(5.dp))
             Text(text = "账号状态: 已登录")
@@ -249,18 +238,24 @@ fun AccountItem(
             Text(text = "最后预约时间: 2023-11-11 11:11:11")
             Spacer(modifier = Modifier.height(5.dp))
             Row {
-                if (account.isExpired) {
-                    Button(onClick = { /*TODO*/ }) {
-                        Text(text = "重新登录")
-                    }
-                }
-
+//                Button(onClick = { /*TODO*/ }) {
+//                    Text(text = "重新登录")
+//                }
 //                Button(onClick = { /*TODO*/ }) {
 //                    Text(text = "复制Token")
 //                }
-//                Button(onClick = { /*TODO*/ }) {
-//                    Text(text = "检查并预约")
-//                }
+                Button(onClick = {
+                    if (miniAccountUiState.isLoading) {
+                        return@Button
+                    }
+                    onAppointed(miniAccountUiState)
+                }) {
+                    if (miniAccountUiState.isLoading) {
+                        CircularProgressIndicator(color = Color.Yellow)
+                    } else {
+                        Text(text = "检查并预约")
+                    }
+                }
             }
         }
     }

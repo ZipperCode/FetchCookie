@@ -1,101 +1,214 @@
 package com.zipper.fetch.cookie.ui.minimt
 
 import android.util.Log
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.zipper.fetch.cookie.dao.AppDataBase
+import com.zipper.fetch.cookie.dao.MiniAccountDao
 import com.zipper.fetch.cookie.data.UiDataProvider
 import com.zipper.fetch.cookie.logic.MiniProgramHelper
-import com.zipper.fetch.cookie.ui.minimt.model.InitMiniProgramData
-import com.zipper.fetch.cookie.dao.MiniAccount
-import com.zipper.fetch.cookie.dao.MiniAccountDao
-import com.zipper.fetch.cookie.logic.MiniProgramHelper.init
+import com.zipper.fetch.cookie.ui.minimt.model.MiniProgramInitData
 import com.zipper.fetch.cookie.util.StoreManager
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MiniViewModel(
     private val dataStore: StoreManager,
 ) : ViewModel() {
-    private val viewModelState = MutableStateFlow(MiniViewModelState(true))
+    private val viewModelState = MutableStateFlow(MiniViewModelState())
 
-    val miniProgramState = viewModelState.map {
+    val miniProgramUiState = viewModelState.map {
         it.miniProgramInitList
-    }.stateIn(
-        viewModelScope,
-        SharingStarted.Lazily,
-        viewModelState.value.miniProgramInitList
-    )
+    }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    val uiState = viewModelState.map {
-        it.toUiState()
-    }.stateIn(
-        viewModelScope,
-        SharingStarted.Eagerly,
-        viewModelState.value.toUiState(),
-    )
+    private val _pageUiState = MutableStateFlow<MiniPageUiState>(MiniPageUiState.Loading)
 
-    val pageUiState = viewModelState.map {
-        it.toPageUiState()
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, viewModelState.value.toPageUiState())
+    val pageUiState get() = _pageUiState
 
+    private val _accounts: MutableStateFlow<List<MiniAccountUiState>> = MutableStateFlow(emptyList())
+
+    val accounts: StateFlow<List<MiniAccountUiState>> get() = _accounts
 
     private val accountDao: MiniAccountDao by lazy {
         AppDataBase.current.getMiniAccountDao()
     }
 
-
     init {
-        initMiniProgram()
+        init()
     }
 
-
-    fun initMiniProgram() {
-        viewModelState.update { it.copy(pageLoading = true) }
+    private fun init() {
+        _pageUiState.update { MiniPageUiState.Loading }
         viewModelScope.launch {
-            val miniList = UiDataProvider.miniProgramItems
-            val miniProgramInitList = MiniProgramHelper.testInit(miniList)
-            viewModelState.update { it.copy(miniProgramInitList = miniProgramInitList, pageLoading = false) }
-            loadAccountList()
-        }
-    }
+            kotlin.runCatching {
+                val miniList = UiDataProvider.miniProgramItems
+                val miniProgramInitList = MiniProgramHelper.testInit(miniList)
+                viewModelState.update { it.copy(miniProgramInitList = miniProgramInitList) }
+                accountDao.allUsers().collect { accountList ->
+                    _accounts.value = accountList.map { account ->
+                        MiniAccountUiState(
+                            account,
+                            miniProgramInitList.find { it.type == account.type },
+                        )
+                    }.toList()
+                }
+                if (_accounts.value.isEmpty()) {
+                    _pageUiState.update { MiniPageUiState.Error("暂无数据") }
+                } else {
+                    _pageUiState.update { MiniPageUiState.Content }
+                }
 
-    fun loadAccountList() {
-        Log.e("BAAA", "Loading Account")
-        viewModelState.update { it.copy(isLoading = true) }
-        viewModelScope.launch {
-            accountDao.allUsers().collect { accountList ->
-                viewModelState.update { it.copy(isLoading = false, accountList = accountList) }
+            }.onFailure {
+                _pageUiState.update { MiniPageUiState.Error(it.toString()) }
             }
         }
     }
 
-    fun sendCode(initMiniProgramData: InitMiniProgramData, phone: String) {
+    fun loadAccountList() {
+        log("loadAccountList")
         viewModelScope.launch {
-            val keyPair = MiniProgramHelper.getInfoKey(initMiniProgramData.appId)
+            val miniProgramInitList = viewModelState.value.miniProgramInitList
+            accountDao.allUsers().collect { accountList ->
+                _accounts.value = accountList.map { account ->
+                    MiniAccountUiState(
+                        account,
+                        miniProgramInitList.find { it.type == account.type },
+                    )
+                }.toList()
+            }
         }
     }
 
-    fun login(initMiniProgramData: InitMiniProgramData, phone: String, code: String, onLoginSuccess: () -> Unit) {
-        viewModelScope.launch {
-            accountDao.insert(
-                MiniAccount(
-                    phone, "token", 0
-                )
-            )
-            onLoginSuccess()
+    suspend fun sendCode(data: MiniProgramInitData, phone: String): Boolean {
+        return withContext(viewModelScope.coroutineContext) {
+            log("发送验证码")
+            val result = kotlin.runCatching {
+                MiniProgramHelper.sendCode(phone, data.appId, data.sendCodeCode, data.ak, data.sk)
+            }
+
+            if (result.isFailure) {
+                le(Log.getStackTraceString(result.exceptionOrNull()))
+            }
+
+            return@withContext result.isSuccess
         }
+    }
+
+    suspend fun login(miniProgramInitData: MiniProgramInitData, phone: String, code: String, onLoginSuccess: () -> Unit) {
+        withContext(viewModelScope.coroutineContext) {
+            delay(5000)
+        }
+    }
+
+    suspend fun appoint(state: MiniAccountUiState) {
+        if (state.mini == null) {
+            return
+        }
+        val miniTokenData = MiniProgramHelper.checkLogin(
+            state.mini.appId,
+            state.account.token,
+            state.mini.ak,
+            state.mini.sk,
+        )
+
+        if (miniTokenData == null) {
+            val account = state.account.copy(isExpired = true, lastOperationTime = System.currentTimeMillis())
+            accountDao.update(account)
+
+//            viewModelState.update { modelState ->
+//                val list = modelState.accountList.map {
+//                    if (state.account == it) {
+//                        account
+//                    } else {
+//                        it
+//                    }
+//                }
+//                modelState.copy(accountList = list)
+//            }
+
+            _accounts.value = accounts.value.map {
+                if (it == state) {
+                    it.copy(account = account)
+                } else {
+                    it
+                }
+            }
+            return
+        }
+
+        val account = state.account.copy(
+            isExpired = false,
+            lastOperationTime = System.currentTimeMillis(),
+            userInfo = miniTokenData,
+        )
+        accountDao.update(account)
+        _accounts.value = accounts.value.map {
+            if (it == state) {
+                it.copy(isLoading = true, account = account)
+            } else {
+                it
+            }
+        }
+
+        val cancelLoadingUpdateState: () -> Unit = {
+            _accounts.value = accounts.value.map {
+                if (it == state) {
+                    it.copy(isLoading = false)
+                } else {
+                    it
+                }
+            }
+        }
+
+        val activity = MiniProgramHelper.channelActivity(
+            state.mini.appId,
+            state.account.token,
+            state.mini.ak,
+            state.mini.sk,
+        )
+        if (activity.isFailure) {
+            cancelLoadingUpdateState()
+            return
+        }
+        val channelInfo = activity.getOrThrow()
+        if (!channelInfo.inAppointTime) {
+            cancelLoadingUpdateState()
+            return
+        }
+
+        val appointResult = MiniProgramHelper.appoint(
+            state.mini.appId,
+            channelInfo.idStr,
+            state.mini.ak,
+            state.mini.sk,
+            state.account.token,
+        )
+
+        if (appointResult.isFailure) {
+            _accounts.value = accounts.value.map {
+                if (it == state) {
+                    it.copy(isLoading = false, appointError = appointResult.exceptionOrNull()?.message)
+                } else {
+                    it
+                }
+            }
+            return
+        }
+        cancelLoadingUpdateState()
+
+        if (!appointResult.getOrThrow()) {
+            log("已经预约过了")
+            return
+        }
+        log("预约成功")
     }
 
     companion object {
@@ -106,31 +219,16 @@ class MiniViewModel(
             }
         }
     }
+
+    fun log(message: String) {
+        Log.d("MiniViewModel", message)
+    }
+
+    fun le(message: String) {
+        Log.e("MiniViewModel", message)
+    }
 }
 
 private data class MiniViewModelState(
-    val isLoading: Boolean = true,
-    val pageLoading: Boolean = false,
-    val accountList: List<MiniAccount> = emptyList(),
-    val miniProgramInitList: List<InitMiniProgramData> = emptyList(),
-) {
-    fun toUiState(): MiniUIState {
-        return if (accountList.isEmpty()) {
-            MiniUIState.NoData(isLoading)
-        } else {
-            MiniUIState.HasAccount(
-                accountList,
-                isLoading = isLoading,
-            )
-        }
-    }
-
-    fun toPageUiState(): MiniPageUiState {
-        if (pageLoading) {
-            return MiniPageUiState.Loading
-        } else if (miniProgramInitList.isNotEmpty()) {
-            return MiniPageUiState.Content()
-        }
-        return MiniPageUiState.Error("初始化小程序失败")
-    }
-}
+    val miniProgramInitList: List<MiniProgramInitData> = emptyList(),
+)

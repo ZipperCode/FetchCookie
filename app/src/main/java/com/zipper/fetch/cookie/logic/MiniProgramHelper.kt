@@ -1,9 +1,8 @@
 package com.zipper.fetch.cookie.logic
 
-import com.zipper.fetch.cookie.data.UiDataProvider.miniProgramItems
-import com.zipper.fetch.cookie.ui.minimt.model.InitMiniProgramData
-import com.zipper.fetch.cookie.ui.minimt.model.MiniProgramConfig
+import com.zipper.fetch.cookie.ui.minimt.model.MiniProgramInitData
 import com.zipper.fetch.cookie.ui.minimt.model.MiniChannelInfo
+import com.zipper.fetch.cookie.ui.minimt.model.MiniProgramConfig
 import com.zipper.fetch.cookie.ui.minimt.model.MiniTokenData
 import com.zipper.fetch.core.ext.awaitResponse
 import com.zipper.fetch.core.ext.base64
@@ -54,26 +53,27 @@ object MiniProgramHelper {
     /**
      * 小程序初始化
      */
-    suspend fun init(miniProgramList: List<MiniProgramConfig>): List<InitMiniProgramData> {
+    suspend fun init(miniProgramList: List<MiniProgramConfig>): List<MiniProgramInitData> {
         return withContext(Dispatchers.IO) {
-            val tasks = mutableListOf<Deferred<InitMiniProgramData?>>()
+            val tasks = mutableListOf<Deferred<MiniProgramInitData?>>()
             for (miniProgramItems in miniProgramList) {
                 //
-                val task: Deferred<InitMiniProgramData?> = async {
+                val task: Deferred<MiniProgramInitData?> = async {
                     val keyPair = getInfoKey(miniProgramItems.appId)
                     if (keyPair != null) {
                         val (ak, sk) = keyPair
                         val channelResp = getChannelResp(miniProgramItems.appId, ak, sk)
                         if (channelResp.isSuccess()) {
                             val channel = channelResp.getInt("data")
-                            return@async InitMiniProgramData(
+                            return@async MiniProgramInitData(
+                                miniProgramItems.type,
                                 miniProgramItems.appId,
                                 miniProgramItems.text,
                                 channel,
                                 ak,
                                 sk,
                                 miniProgramItems.sendCodeCode,
-                                miniProgramItems.phoneLoginCode
+                                miniProgramItems.phoneLoginCode,
                             )
                         }
                     }
@@ -86,18 +86,18 @@ object MiniProgramHelper {
         }
     }
 
-    suspend fun testInit(miniProgramList: List<MiniProgramConfig>): List<InitMiniProgramData> {
+    suspend fun testInit(miniProgramList: List<MiniProgramConfig>): List<MiniProgramInitData> {
         return withContext(Dispatchers.IO) {
-
             return@withContext miniProgramList.map { miniProgramItems ->
-                InitMiniProgramData(
+                MiniProgramInitData(
+                    miniProgramItems.type,
                     miniProgramItems.appId,
                     miniProgramItems.text,
                     5,
                     "ak",
                     "sk",
                     miniProgramItems.sendCodeCode,
-                    miniProgramItems.phoneLoginCode
+                    miniProgramItems.phoneLoginCode,
                 )
             }.toList()
         }
@@ -207,6 +207,47 @@ object MiniProgramHelper {
                 phoneIsBind,
                 status,
             ),
+        )
+    }
+
+    suspend fun checkLogin(appId: String, token: String, ak: String, sk: String): MiniTokenData? {
+        val tokenMap = mapOf(
+            "Channel" to "miniapp",
+            "DataType" to "json",
+            "X-access-token" to token,
+        )
+
+        val betweenTime = getChannelBetweenTime(appId, ak, sk)
+
+        val queryTokenResp = post(
+            "/front-manager/api/customer/queryById/token",
+            """{"channel":"h5"}""",
+            betweenTime,
+            ak,
+            sk,
+            tokenMap,
+        ) ?: return null
+
+        if (!queryTokenResp.isSuccess()) {
+            return null
+        }
+
+        val openId = queryTokenResp.getString("openId")
+        val realName = queryTokenResp.getString("realName")
+        val phone = queryTokenResp.getString("phone")
+        val isRealNameAuth = queryTokenResp.getBoolean("isRealNameAuth")
+        val idCard = queryTokenResp.getString("idcard")
+        val phoneIsBind = queryTokenResp.getBoolean("phoneIsBind")
+        val status = queryTokenResp.getInt("status")
+
+        return MiniTokenData(
+            openId,
+            realName,
+            phone,
+            isRealNameAuth,
+            idCard,
+            phoneIsBind,
+            status,
         )
     }
 

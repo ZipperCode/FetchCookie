@@ -12,5 +12,8 @@ data class MiniChannelInfo(
     val purchaseStartTime: Long,
     val purchaseEndTime: Long,
     val appointCounts: Int,
-    val isAppoint: Int
-)
+    val isAppoint: Int,
+) {
+    val idStr: String get() = "$id"
+    val inAppointTime: Boolean get() = (System.currentTimeMillis() in (appointStartTime until appointEndTime))
+}

@@ -19,15 +19,15 @@ import okhttp3.Response
 
 class MiniProgramMaoTai(
     private val config: MiniProgramConfig,
-    private val dataStore: StoreManager
+    private val dataStore: StoreManager,
 ) {
 
     private var token: String = ""
 
     private var serviceBetweenTime: Long = 0
 
-    private var ak: String = config.ak
-    private var sk: String = config.sk
+    private var ak: String = ""
+    private var sk: String = ""
 
     suspend fun getInfo(): Boolean {
         val body = """{"appId":"${config.appId}"}"""
@@ -98,7 +98,6 @@ class MiniProgramMaoTai(
             val data = resp?.get("data") as Map<*, *>?
             token = data.getString("token")
             // TODO 保存token
-
         }
     }
 
@@ -132,7 +131,7 @@ class MiniProgramMaoTai(
                 预约时间        = ${appointStartTime.toDateFmt()} ~ ${appointEndTime.toDateFmt()}
                 开奖时间        = ${drawTime.toDateFmt()}
                 下单时间        = ${purchaseStartTime.toDateFmt()} ~ ${purchaseEndTime.toDateFmt()}
-            """.trimIndent()
+                """.trimIndent(),
             )
 
             if (isAppoint == 0 && sysCurrentTime in appointStartTime until appointEndTime) {
@@ -147,11 +146,15 @@ class MiniProgramMaoTai(
     suspend fun appoint() {
         val url = "/front-manager/api/customer/promotion/appoint"
         val body = """{"activityId":374,"channelId":3}"""
-        val resp = post(url, body, mapOf(
-            "Channel" to "miniapp",
-            "DataType" to "json",
-            "Referer" to "https://hqmall.huiqunchina.com/",
-        ))
+        val resp = post(
+            url,
+            body,
+            mapOf(
+                "Channel" to "miniapp",
+                "DataType" to "json",
+                "Referer" to "https://hqmall.huiqunchina.com/",
+            ),
+        )
         if (resp.isSuccess()) {
             if (resp?.get("data") == true) {
                 // 成功
@@ -165,11 +168,15 @@ class MiniProgramMaoTai(
     suspend fun checkCustomer() {
         val url = "/front-manager/api/customer/promotion/checkCustomerInQianggou"
         val body = """{"activityId":374,"channelId":3}"""
-        val resp = post(url, body, mapOf(
-            "Channel" to "miniapp",
-            "DataType" to "json",
-            "Referer" to "https://hqmall.huiqunchina.com/",
-        ))
+        val resp = post(
+            url,
+            body,
+            mapOf(
+                "Channel" to "miniapp",
+                "DataType" to "json",
+                "Referer" to "https://hqmall.huiqunchina.com/",
+            ),
+        )
 
         if (resp.isSuccess()) {
             if (resp?.get("data") == true) {
@@ -181,11 +188,15 @@ class MiniProgramMaoTai(
     suspend fun getChannelInfo() {
         val url = "/front-manager/api/get/getChannelInfoId"
         val body = """{"appId":"wx5508e31ffe9366b8"}"""
-        val resp = post(url, body, mapOf(
-            "Channel" to "miniapp",
-            "DataType" to "json",
-            "Referer" to "https://hqmall.huiqunchina.com/",
-        ))
+        val resp = post(
+            url,
+            body,
+            mapOf(
+                "Channel" to "miniapp",
+                "DataType" to "json",
+                "Referer" to "https://hqmall.huiqunchina.com/",
+            ),
+        )
 
         val data = resp.getMap("data")
 
@@ -235,5 +246,4 @@ class MiniProgramMaoTai(
         }
         return get("code") == "10000"
     }
-
 }

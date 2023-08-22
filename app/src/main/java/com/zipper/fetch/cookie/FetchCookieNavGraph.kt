@@ -11,14 +11,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
-import com.zipper.fetch.cookie.ui.AppDestination.MTScreenRoute
-import com.zipper.fetch.cookie.ui.AppDestination.MainScreenRoute
-import com.zipper.fetch.cookie.ui.AppDestination.MiniAccountLoginScreenRoute
-import com.zipper.fetch.cookie.ui.AppDestination.MiniMTAccountScreenRoute
 import com.zipper.fetch.cookie.ui.AppScreen
 import com.zipper.fetch.cookie.ui.home.HomeRoute
 import com.zipper.fetch.cookie.ui.minimt.MiniHomeRoute
@@ -26,10 +20,9 @@ import com.zipper.fetch.cookie.ui.minimt.MiniLoginRoute
 import com.zipper.fetch.cookie.ui.minimt.MiniViewModel
 import com.zipper.fetch.cookie.util.StoreManager
 
-
 private fun NavGraphBuilder.composable(
     screen: AppScreen,
-    content: @Composable (NavBackStackEntry) -> Unit
+    content: @Composable (NavBackStackEntry) -> Unit,
 ) {
     composable(screen.route, content = content)
 }

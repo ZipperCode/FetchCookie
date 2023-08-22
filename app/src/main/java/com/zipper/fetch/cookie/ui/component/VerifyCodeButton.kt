@@ -1,6 +1,5 @@
 package com.zipper.fetch.cookie.ui.component
 
-import android.annotation.SuppressLint
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -11,53 +10,61 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Preview
 @Composable
 fun VerifyCodeButtonPrevious() {
-    VerifyCodeButton( ) {
+    val inSendCode by remember {
+        mutableStateOf(false)
     }
+
+    VerifyCodeButton(inSendCode = inSendCode, onSend = {
+    }, onTimeDone = {
+    })
 }
 
 @Composable
 fun VerifyCodeButton(
     modifier: Modifier = Modifier,
+    inSendCode: Boolean = false,
     totalTime: Int = 60,
     buttonText: String = "发送验证码",
-    onClick: () -> Unit,
+    onSend: () -> Unit,
+    onTimeDone: () -> Unit,
 ) {
-    var send by remember {
-        mutableStateOf(false)
-    }
-
     var timeStep by remember {
         mutableStateOf(totalTime)
     }
 
     val coroutineScope = rememberCoroutineScope()
 
+    var job by remember {
+        mutableStateOf<Job?>(null)
+    }
+
     Button(
         onClick = {
-            if (send) {
+            if (inSendCode) {
                 return@Button
             }
-            onClick()
-            send = true
-            coroutineScope.launch {
+            onSend()
+            job?.cancel()
+            job = coroutineScope.launch {
                 repeat(totalTime) {
                     delay(1000)
                     timeStep -= 1
                 }
-                send = false
+                onTimeDone()
                 timeStep = totalTime
             }
         },
         modifier = modifier,
-        enabled = !send,
+        enabled = !inSendCode,
     ) {
-        if (send) {
+        if (inSendCode) {
             Text("${timeStep}s")
         } else {
             Text(buttonText)
