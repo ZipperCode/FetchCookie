@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -46,7 +47,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import com.zipper.fetch.cookie.dao.MiniAccount
+import com.zipper.fetch.cookie.data.UiDataProvider
 import com.zipper.fetch.cookie.ui.AppScreen
+import com.zipper.fetch.core.ext.toDateFmt
 import kotlinx.coroutines.launch
 
 @Preview
@@ -102,7 +106,7 @@ fun MiniHomeScreen(
                     }
 
                     is MiniPageUiState.Error -> {
-                        ErrorContent(message = (pageUiState as MiniPageUiState.Error).message){
+                        ErrorContent(message = (pageUiState as MiniPageUiState.Error).message) {
                             miniViewModel.loadAccount()
                         }
                     }
@@ -186,7 +190,13 @@ private fun AccountListContent(
         LazyColumn(state = state) {
             accountUiStateList.forEach { account ->
                 item {
-                    AccountItem(account, onAppointed)
+                    AccountItem(account, onReLogin = {
+
+                        }, onAppointed = {
+
+                        }, onCopyToken = {
+
+                        })
                 }
             }
         }
@@ -195,13 +205,33 @@ private fun AccountListContent(
 
 val AccountImageRound = RoundedCornerShape(16.dp)
 
+@Preview
+@Composable
+fun AccountItemPreview() {
+    val accountState = MiniAccountUiState(
+        MiniAccount("13812345678", "token", 1, false, 0, 0),
+        null,
+    )
+    AccountItem(
+        miniAccountUiState = accountState,
+        onReLogin = {
+        },
+        onAppointed = {
+        },
+        onCopyToken = {
+
+        }
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountItem(
     miniAccountUiState: MiniAccountUiState,
+    onReLogin: (MiniAccountUiState) -> Unit,
     onAppointed: (MiniAccountUiState) -> Unit,
+    onCopyToken: (String) -> Unit
 ) {
-
     Card(
         onClick = { },
         modifier = Modifier
@@ -216,7 +246,7 @@ fun AccountItem(
                     modifier = Modifier
                         .align(Alignment.CenterVertically)
                         .clip(AccountImageRound)
-                        .background(Color.Red),
+                        .background(UiDataProvider.colors.random()),
                 ) {
                     Text(
                         text = miniAccountUiState.mini?.text ?: "不可用",
@@ -237,17 +267,26 @@ fun AccountItem(
                 Text(text = miniAccountUiState.account.phone, fontSize = 16.sp, modifier = Modifier.align(Alignment.CenterVertically))
             }
             Spacer(modifier = Modifier.height(5.dp))
-            Text(text = "账号状态: 已登录")
+            Row {
+                Text(text = "账号状态: ")
+                if (miniAccountUiState.account.isExpired) {
+                    Text(text = "已失效", color = Color.Red)
+                } else {
+                    Text(text = "已登录", color = Color.Green)
+                }
+            }
             Spacer(modifier = Modifier.height(5.dp))
-            Text(text = "最后预约时间: 2023-11-11 11:11:11")
+            Text(text = "最后预约时间: ${miniAccountUiState.account.lastAppointTime.toDateFmt()}")
+            Spacer(modifier = Modifier.height(5.dp))
+            Text(text = "最后操作时间: ${miniAccountUiState.account.lastOperationTime.toDateFmt()}")
             Spacer(modifier = Modifier.height(5.dp))
             Row {
-//                Button(onClick = { /*TODO*/ }) {
-//                    Text(text = "重新登录")
-//                }
-//                Button(onClick = { /*TODO*/ }) {
-//                    Text(text = "复制Token")
-//                }
+                Button(onClick = { onReLogin(miniAccountUiState) }) {
+                    Text(text = "重新登录")
+                }
+                Button(onClick = { onCopyToken(miniAccountUiState.account.token) }) {
+                    Text(text = "复制Token")
+                }
                 Button(onClick = {
                     if (miniAccountUiState.isLoading) {
                         return@Button

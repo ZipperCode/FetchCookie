@@ -1,26 +1,22 @@
 package com.zipper.fetch.cookie.ui.minimt
 
 import android.util.Log
-import androidx.lifecycle.viewModelScope
 import com.zipper.fetch.cookie.dao.MiniAccount
 import com.zipper.fetch.cookie.dao.MiniAccountDao
 import com.zipper.fetch.cookie.data.UiDataProvider
 import com.zipper.fetch.cookie.logic.MiniProgramHelper
 import com.zipper.fetch.cookie.logic.MiniProgramHelper.isSuccess
-import com.zipper.fetch.cookie.ui.minimt.model.MiniProgramConfig
 import com.zipper.fetch.cookie.ui.minimt.model.MiniProgramInitData
 import com.zipper.fetch.core.ext.getInt
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 
 class MiniRepository(
-    private val dao: MiniAccountDao
+    private val dao: MiniAccountDao,
 ) {
 
     private val _miniPrograms = mutableListOf<MiniProgramInitData>()
@@ -42,7 +38,7 @@ class MiniRepository(
         val miniProgramList = UiDataProvider.miniProgramItems
         return flow {
             for (miniProgramItems in miniProgramList) {
-                emit("初始化 ${miniProgramItems.text} ...")
+                emit("正在初始化 ${miniProgramItems.text}")
                 val result = kotlin.runCatching {
                     var errorMessage: String? = null
                     val keyPair = MiniProgramHelper.getInfoKey(miniProgramItems.appId)
@@ -62,7 +58,6 @@ class MiniRepository(
                                 miniProgramItems.phoneLoginCode,
                             )
                             _miniPrograms.add(data)
-                            emit("初始化 ${miniProgramItems.text} 完成")
                             return@runCatching
                         }
                         errorMessage = "Channel 初始化失败"
@@ -80,6 +75,7 @@ class MiniRepository(
             }
         }.flowOn(Dispatchers.IO)
     }
+
     suspend fun getAllUsers() = withContext(Dispatchers.IO) {
         return@withContext dao.getAllUsers()
     }
@@ -99,16 +95,17 @@ class MiniRepository(
 
     suspend fun login(
         miniProgramInitData: MiniProgramInitData,
-        phone: String, code: String
+        phone: String,
+        code: String,
     ): Result<MiniAccount> = withContext(Dispatchers.IO) {
-
         return@withContext kotlin.runCatching {
             val token = MiniProgramHelper.login(
-                phone, code,
+                phone,
+                code,
                 miniProgramInitData.appId,
                 miniProgramInitData.phoneLoginCode,
                 miniProgramInitData.ak,
-                miniProgramInitData.sk
+                miniProgramInitData.sk,
             )
 
             var user = dao.get(miniProgramInitData.type, phone)
@@ -119,7 +116,7 @@ class MiniRepository(
                     token = token,
                     type = miniProgramInitData.type,
                     isExpired = false,
-                    lastOperationTime = System.currentTimeMillis()
+                    lastOperationTime = System.currentTimeMillis(),
                 )
                 dao.insert(user)
             } else {
@@ -127,8 +124,8 @@ class MiniRepository(
                     user.copy(
                         token = token,
                         isExpired = false,
-                        lastOperationTime = System.currentTimeMillis()
-                    )
+                        lastOperationTime = System.currentTimeMillis(),
+                    ),
                 )
             }
 
@@ -150,7 +147,7 @@ class MiniRepository(
                         isExpired = false,
                         lastOperationTime = System.currentTimeMillis(),
                         userInfo = this,
-                    )
+                    ),
                 )
             }
             miniTokenData == null
@@ -172,7 +169,7 @@ class MiniRepository(
             activityId,
             miniProgram.ak,
             miniProgram.sk,
-            account.token
+            account.token,
         )
     }
 

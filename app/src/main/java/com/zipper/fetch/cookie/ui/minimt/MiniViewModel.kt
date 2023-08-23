@@ -4,27 +4,20 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.zipper.fetch.cookie.dao.AppDataBase
-import com.zipper.fetch.cookie.dao.MiniAccountDao
-import com.zipper.fetch.cookie.data.UiDataProvider
-import com.zipper.fetch.cookie.logic.MiniProgramHelper
 import com.zipper.fetch.cookie.ui.minimt.model.MiniProgramInitData
-import com.zipper.fetch.cookie.util.StoreManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.flow.zip
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.nio.file.Files.find
+import kotlin.system.measureTimeMillis
 
 class MiniViewModel(
     private val repository: MiniRepository,
@@ -66,7 +59,28 @@ class MiniViewModel(
     fun loadAccount() {
         _pageUiState.update { MiniPageUiState.Loading }
         viewModelScope.launch {
-            delay(1000)
+            val time = measureTimeMillis {
+                repository.accountCount.collect {
+                    if (it > 0) {
+                        val accountList = repository.getAllUsers()
+                        _accounts.value = accountList.map { account ->
+                            MiniAccountUiState(
+                                account,
+                                repository.miniPrograms.find { it.type == account.type },
+                            )
+                        }.toList()
+                        _pageUiState.update { MiniPageUiState.Content }
+                    } else {
+                        _pageUiState.update { MiniPageUiState.Error("暂无数据") }
+                    }
+                }
+            }
+            delay(if (time > 1000L) time else 1000L)
+        }
+    }
+
+    fun refreshAccount() {
+        viewModelScope.launch {
             repository.accountCount.collect {
                 if (it > 0) {
                     val accountList = repository.getAllUsers()
@@ -76,9 +90,6 @@ class MiniViewModel(
                             repository.miniPrograms.find { it.type == account.type },
                         )
                     }.toList()
-                    _pageUiState.update { MiniPageUiState.Content }
-                } else {
-                    _pageUiState.update { MiniPageUiState.Error("暂无数据") }
                 }
             }
         }
@@ -92,9 +103,10 @@ class MiniViewModel(
 
     fun login(
         miniProgramInitData: MiniProgramInitData,
-        phone: String, code: String,
+        phone: String,
+        code: String,
         onLoginSuccess: () -> Unit,
-        onLoginFailure: (String) -> Unit
+        onLoginFailure: (String) -> Unit,
     ) {
         viewModelScope.launch {
             val result = repository.login(miniProgramInitData, phone, code)

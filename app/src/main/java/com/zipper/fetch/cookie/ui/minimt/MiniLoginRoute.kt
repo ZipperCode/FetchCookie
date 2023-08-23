@@ -89,13 +89,23 @@ fun LoginScreenPreview() {
 
 @Composable
 fun MiniLoginRoute(viewModel: MiniViewModel, onPopBackStack: () -> Unit) {
-    LoginScreen(viewModel, onPopBackStack = onPopBackStack)
+    LoginScreen(
+        viewModel,
+        viewModel::sendCode,
+        loginAction = viewModel::login,
+        onPopBackStack = {
+            viewModel.refreshAccount()
+            onPopBackStack()
+        },
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     viewModel: MiniViewModel,
+    sendCodeAction: suspend (MiniProgramInitData, String) -> Boolean,
+    loginAction: (MiniProgramInitData, String, String, () -> Unit, (String) -> Unit) -> Unit,
     onPopBackStack: () -> Unit,
 ) {
     val miniProgramList by viewModel.miniProgramUiState.collectAsStateWithLifecycle()
@@ -119,7 +129,7 @@ fun LoginScreen(
 
         // TextFields
         var phone by remember { mutableStateOf(TextFieldValue("")) }
-        var code by remember { mutableStateOf(TextFieldValue("1234")) }
+        var code by remember { mutableStateOf(TextFieldValue("")) }
         var hasError by remember { mutableStateOf(false) }
         val phoneInteractionState = remember { MutableInteractionSource() }
         val codeInteractionState = remember { MutableInteractionSource() }
@@ -159,6 +169,7 @@ fun LoginScreen(
                         onValueChange = {},
                         maxLines = 1,
                         enabled = false,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
@@ -173,7 +184,7 @@ fun LoginScreen(
                     isError = hasError,
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Text,
+                        keyboardType = KeyboardType.Number,
                         imeAction = ImeAction.Next,
                     ),
                     label = { Text(text = "手机号") },
@@ -193,7 +204,7 @@ fun LoginScreen(
                     isError = hasError,
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
+                        keyboardType = KeyboardType.Number,
                         imeAction = ImeAction.Done,
                     ),
                     label = { Text(text = "验证码") },
@@ -215,7 +226,7 @@ fun LoginScreen(
                                 } else if (!inSendCode) {
                                     inSendCode = true
                                     coroutineScope.launch {
-                                        inSendCode = viewModel.sendCode(miniProgram, phone.text)
+                                        inSendCode = sendCodeAction(miniProgram, phone.text)
                                     }
                                 }
                             },
@@ -230,6 +241,9 @@ fun LoginScreen(
             item {
                 Button(
                     onClick = {
+                        if (loading) {
+                            return@Button
+                        }
                         if (phone.text.isEmpty() || code.text.isEmpty()) {
                             hasError = true
                             loading = false
@@ -241,15 +255,17 @@ fun LoginScreen(
                                     snackBarHostState.showSnackbar("还未选择一个小程序类型")
                                 }
                             } else {
-                                viewModel.login(miniProgram, phone.text, code.text,
-                                    onLoginSuccess = {
+                                loginAction(miniProgram, phone.text, code.text, {
+                                    coroutineScope.launch {
+                                        snackBarHostState.showSnackbar("登录成功")
                                         onPopBackStack()
-                                    }, onLoginFailure = {
-                                        coroutineScope.launch {
-                                            snackBarHostState.showSnackbar(it)
-                                        }
                                     }
-                                )
+                                }, {
+                                    coroutineScope.launch {
+                                        snackBarHostState.showSnackbar(it)
+                                    }
+                                    loading = false
+                                })
                             }
                         }
                     },

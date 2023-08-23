@@ -22,6 +22,8 @@ object UiDataProvider {
     )
 
     val colors = listOf(
+        Color(0xFFFFBDDC),
+        Color(0xFFECCFFF),
         Color(0xFFffd7d7.toInt()),
         Color(0xFFffe9d6.toInt()),
         Color(0xFFfffbd0.toInt()),
