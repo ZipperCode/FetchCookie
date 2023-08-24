@@ -32,6 +32,10 @@ class MiniViewModel(
         it.initLoadingMessage
     }.stateIn(viewModelScope, SharingStarted.Lazily, "加载中...")
 
+    val snackBarMessageUiState = viewModelState.map {
+        it.snackBarMessage
+    }.stateIn(viewModelScope, SharingStarted.Lazily, null)
+
     private val _pageUiState = MutableStateFlow<MiniPageUiState>(MiniPageUiState.Loading)
 
     val pageUiState get() = _pageUiState
@@ -119,52 +123,62 @@ class MiniViewModel(
         }
     }
 
-    suspend fun appoint(state: MiniAccountUiState) {
-        if (state.mini == null) {
-            return
-        }
+    fun appoint(state: MiniAccountUiState) {
+        viewModelScope.launch {
+            if (state.mini == null) {
+                viewModelState.update { it.copy(snackBarMessage = "未获取到此账号对应的小程序数据") }
+                return@launch
+            }
 
-        val updateLoadingState: (Boolean) -> Unit = { loadingState ->
-            _accounts.value = _accounts.value.map {
-                if (it == state) {
-                    it.copy(isLoading = loadingState)
-                } else {
-                    it
+            val updateLoadingState: (Boolean) -> Unit = { loadingState ->
+                _accounts.value = _accounts.value.map {
+                    if (it == state) {
+                        it.copy(isLoading = loadingState)
+                    } else {
+                        it
+                    }
                 }
             }
-        }
-        updateLoadingState(true)
+            updateLoadingState(true)
 
-        val checkLoginResult = repository.checkLogin(state.mini, state.account)
+            val checkLoginResult = repository.checkLogin(state.mini, state.account)
 
-        if (checkLoginResult.isFailure) {
-            return
-        }
+            if (checkLoginResult.isFailure) {
+                viewModelState.update { it.copy(snackBarMessage = "账号: ${state.account.phone} 已经过期") }
+                refreshAccount()
+                return@launch
+            }
 
-        val activity = repository.channelActivity(state.mini, state.account)
-        if (activity.isFailure) {
+            val activity = repository.channelActivity(state.mini, state.account)
+            if (activity.isFailure) {
+                viewModelState.update { it.copy(snackBarMessage = "${state.mini.text}:请求预约活动失败") }
+                updateLoadingState(false)
+                return@launch
+            }
+            val channelInfo = activity.getOrThrow()
+            if (!channelInfo.inAppointTime) {
+                viewModelState.update { it.copy(snackBarMessage = "${state.mini.text}: 当前不在预约时间内") }
+                updateLoadingState(false)
+                return@launch
+            }
+
+            val appointResult = repository.appoint(state.mini, channelInfo.idStr, state.account)
+
             updateLoadingState(false)
-            return
-        }
-        val channelInfo = activity.getOrThrow()
-        if (!channelInfo.inAppointTime) {
-            updateLoadingState(false)
-            return
-        }
 
-        val appointResult = repository.appoint(state.mini, channelInfo.idStr, state.account)
+            if (appointResult.isFailure) {
+                viewModelState.update { it.copy(snackBarMessage = "${state.mini.text}: 预约失败，${appointResult.exceptionOrNull()?.message}") }
+                return@launch
+            }
 
-        updateLoadingState(false)
-
-        if (appointResult.isFailure) {
-            return
+            if (!appointResult.getOrThrow()) {
+                viewModelState.update { it.copy(snackBarMessage = "${state.mini.text}: 已经预约过了") }
+                log("已经预约过了")
+                return@launch
+            }
+            viewModelState.update { it.copy(snackBarMessage = "${state.mini.text}: 预约成功") }
+            log("预约成功")
         }
-
-        if (!appointResult.getOrThrow()) {
-            log("已经预约过了")
-            return
-        }
-        log("预约成功")
     }
 
     companion object {
@@ -187,5 +201,6 @@ class MiniViewModel(
 
 private data class MiniViewModelState(
     val initLoadingMessage: String? = null,
+    val snackBarMessage: String? = null,
     val miniProgramInitList: List<MiniProgramInitData> = emptyList(),
 )

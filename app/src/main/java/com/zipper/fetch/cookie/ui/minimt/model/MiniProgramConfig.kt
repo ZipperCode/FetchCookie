@@ -15,6 +15,9 @@ sealed class MiniProgramConfig(
     /**
      * ak: dceec997f6c9c222ac122f727ec42668
      * sk: c8e8294fdc59d814ef2e0e38e53fe4f2
+     *
+     * 0e1h6aGa1GirTF0j2oGa1xvvN21h6aGJ
+     * 0f1qgEkl2w8ETb46tVml2sIzw74qgEkn
      */
     object Zhcs : MiniProgramConfig(
         1,

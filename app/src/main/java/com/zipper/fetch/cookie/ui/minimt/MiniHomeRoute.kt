@@ -31,6 +31,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -38,7 +39,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -78,6 +80,8 @@ fun MiniHomeScreen(
 
     val loadingMessage by miniViewModel.loadingMessageUiState.collectAsStateWithLifecycle()
 
+    val snackBarMessage by miniViewModel.snackBarMessageUiState.collectAsStateWithLifecycle()
+
     val snackBarHostState = remember { SnackbarHostState() }
 
     val coroutineScope = rememberCoroutineScope()
@@ -95,6 +99,12 @@ fun MiniHomeScreen(
             )
         },
         content = { paddingValues ->
+            if (snackBarMessage != null) {
+                LaunchedEffect(snackBarMessage) {
+                    snackBarHostState.showSnackbar(snackBarMessage!!)
+                }
+            }
+
             Box(
                 modifier = Modifier
                     .padding(paddingValues)
@@ -113,11 +123,19 @@ fun MiniHomeScreen(
 
                     is MiniPageUiState.Content -> {
                         val accounts by miniViewModel.accounts.collectAsStateWithLifecycle()
+                        val clipManager = LocalClipboardManager.current
                         AccountListContent(
                             accounts,
+                            onReLogin = {
+                                onRoute(AppScreen.MiniLogin)
+                            },
                             onAppointed = {
+                                miniViewModel.appoint(it)
+                            },
+                            onCopyToken = {
+                                clipManager.setText(AnnotatedString(it))
                                 coroutineScope.launch {
-                                    miniViewModel.appoint(it)
+                                    snackBarHostState.showSnackbar("复制成功: ${clipManager.getText()}")
                                 }
                             },
                         )
@@ -170,7 +188,9 @@ private fun MiniHomeContent(
 private fun AccountListContent(
     accountUiStateList: List<MiniAccountUiState>,
     modifier: Modifier = Modifier,
+    onReLogin: (MiniAccountUiState) -> Unit,
     onAppointed: (MiniAccountUiState) -> Unit,
+    onCopyToken: (String) -> Unit,
     state: LazyListState = rememberLazyListState(),
 ) {
     Column(modifier = modifier) {
@@ -190,13 +210,7 @@ private fun AccountListContent(
         LazyColumn(state = state) {
             accountUiStateList.forEach { account ->
                 item {
-                    AccountItem(account, onReLogin = {
-
-                        }, onAppointed = {
-
-                        }, onCopyToken = {
-
-                        })
+                    AccountItem(account, onReLogin, onAppointed, onCopyToken)
                 }
             }
         }
@@ -219,8 +233,7 @@ fun AccountItemPreview() {
         onAppointed = {
         },
         onCopyToken = {
-
-        }
+        },
     )
 }
 
@@ -230,7 +243,7 @@ fun AccountItem(
     miniAccountUiState: MiniAccountUiState,
     onReLogin: (MiniAccountUiState) -> Unit,
     onAppointed: (MiniAccountUiState) -> Unit,
-    onCopyToken: (String) -> Unit
+    onCopyToken: (String) -> Unit,
 ) {
     Card(
         onClick = { },
